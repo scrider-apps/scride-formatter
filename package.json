@@ -1,7 +1,7 @@
 {
   "name": "@scrider/formatter",
-  "version": "1.0.0",
-  "description": "Schema, conversion and block handlers for @scrider/delta. HTML, Markdown, sanitization.",
+  "version": "1.0.1",
+  "description": "Delta converters and block handlers for rich-text content",
   "author": "Pavel Sukharev",
   "license": "MIT",
   "type": "module",

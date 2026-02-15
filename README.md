@@ -98,15 +98,36 @@ normalizeDelta(delta)                      // Normalize operations
 
 ### Block Handlers
 
+Block handlers process complex block embeds (tables, alerts, footnotes, etc.) stored in Delta as `{ insert: { block: { type, ... } } }`. Pass them to conversion functions via `createDefaultBlockHandlers()` or register individually:
+
 ```typescript
 import {
-  tableBlockHandler,
-  footnotesBlockHandler,
-  alertBlockHandler,
-  columnsBlockHandler,
-  boxBlockHandler,
+  createDefaultBlockHandlers,
+  deltaToHtml,
+  htmlToDelta,
+  createDefaultRegistry,
 } from '@scrider/formatter';
+
+const registry = createDefaultRegistry();
+const blockHandlers = createDefaultBlockHandlers();
+
+// Delta with an alert block → HTML
+const html = deltaToHtml(delta, { registry, blockHandlers });
+// → '<div class="markdown-alert markdown-alert-note">...</div>'
+
+// HTML with block embeds → Delta
+const delta = htmlToDelta(html, { registry, blockHandlers });
 ```
+
+Built-in handlers:
+
+| Handler | Block type | Description |
+|---------|-----------|-------------|
+| `tableBlockHandler` | `table` | Extended tables with colspan/rowspan, nested Delta cells |
+| `alertBlockHandler` | `alert` | GitHub-style alerts (`[!NOTE]`, `[!TIP]`, `[!WARNING]`, etc.) |
+| `footnotesBlockHandler` | `footnotes` | Footnotes with `[^id]` references |
+| `columnsBlockHandler` | `columns` | Multi-column layout (CSS Grid) |
+| `boxBlockHandler` | `box` | Inline-box with float/overflow |
 
 ## Ecosystem
 
