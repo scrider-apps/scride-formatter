@@ -1,0 +1,12 @@
+export { backgroundFormat } from './background';
+export { boldFormat } from './bold';
+export { codeFormat } from './code';
+export { colorFormat } from './color';
+export { italicFormat } from './italic';
+export { kbdFormat } from './kbd';
+export { linkFormat } from './link';
+export { markFormat } from './mark';
+export { strikeFormat } from './strike';
+export { subscriptFormat } from './subscript';
+export { superscriptFormat } from './superscript';
+export { underlineFormat } from './underline';
