@@ -89,6 +89,8 @@
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@scrider/delta": "^1.0.0",
+    "@types/jsdom": "^27.0.0",
+    "@types/node": "^25.2.3",
     "@vitest/coverage-v8": "^1.2.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
