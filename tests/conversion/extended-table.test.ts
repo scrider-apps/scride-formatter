@@ -329,8 +329,8 @@ describe('Extended Table: HTML → Delta', () => {
   /** Extract the block embed data from a Delta */
   function extractBlockData(delta: Delta): TableBlockData | null {
     for (const op of delta.ops) {
-      if (typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
-        return (op.insert as Record<string, unknown>).block as TableBlockData;
+      if ('insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
+        return (op.insert).block as TableBlockData;
       }
     }
     return null;
@@ -352,7 +352,7 @@ describe('Extended Table: HTML → Delta', () => {
       expect(cellA).not.toBeNull();
       expect(
         cellA!.ops.some(
-          (op: Op) => typeof op.insert === 'string' && (op.insert as string).includes('A'),
+          (op: Op) => 'insert' in op && typeof op.insert === 'string' && (op.insert).includes('A'),
         ),
       ).toBe(true);
     });
@@ -507,6 +507,7 @@ describe('Extended Table: HTML → Delta', () => {
       const ops = delta.ops;
       const hasTableRow = ops.some(
         (op: Op) =>
+          'insert' in op &&
           typeof op.insert === 'string' &&
           op.insert === '\n' &&
           (op.attributes as Record<string, unknown> | undefined)?.['table-row'] !== undefined,
@@ -526,8 +527,8 @@ describe('Extended Table: Roundtrip', () => {
   /** Extract block data from Delta for comparison */
   function extractBlockData(delta: Delta): TableBlockData | null {
     for (const op of delta.ops) {
-      if (typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
-        return (op.insert as Record<string, unknown>).block as TableBlockData;
+      if ('insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
+        return (op.insert).block as TableBlockData;
       }
     }
     return null;

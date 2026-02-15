@@ -23,7 +23,7 @@ import {
   toHexColor,
 } from '../src/index';
 
-describe('Public API exports (@scrider/formatting)', () => {
+describe('Public API exports (@scrider/formatter)', () => {
   it('exports Registry class', () => {
     expect(Registry).toBeDefined();
     const registry = new Registry();
@@ -106,7 +106,7 @@ describe('Public API exports (@scrider/formatting)', () => {
 });
 
 // Type-only tests (compile-time verification)
-describe('Type exports (@scrider/formatting)', () => {
+describe('Type exports (@scrider/formatter)', () => {
   it('Format type is usable', () => {
     const format: Format<boolean> = {
       name: 'test',

@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -31,7 +32,7 @@ function columnsDelta(
 ): Delta {
   const data: ColumnsBlockData = {
     type: 'columns',
-    columns: columns.map((ops) => ({ ops })),
+    columns: columns.map((ops) => ({ ops: ops as InsertOp[] })),
   };
   if (widths) {
     data.widths = widths;
@@ -249,12 +250,13 @@ describe('Columns: HTML → Delta', () => {
     const delta = htmlToDelta(html, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     expect(block.type).toBe('columns');
     expect(block.columns).toHaveLength(2);
   });
@@ -269,11 +271,12 @@ describe('Columns: HTML → Delta', () => {
     const delta = htmlToDelta(html, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     expect(block.widths).toEqual([30, 70]);
   });
 
@@ -288,11 +291,12 @@ describe('Columns: HTML → Delta', () => {
     const delta = htmlToDelta(html, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     expect(block.type).toBe('columns');
     expect(block.columns).toHaveLength(3);
     expect(block.widths).toBeUndefined();
@@ -309,14 +313,15 @@ describe('Columns: HTML → Delta', () => {
     // Without blockHandlers, should NOT produce block embed
     const blockOp = delta.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeUndefined();
     // But text should still be extracted
     const text = delta.ops
-      .filter((op) => typeof op.insert === 'string')
+      .filter((op): op is InsertOp => 'insert' in op && typeof op.insert === 'string')
       .map((op) => op.insert as string)
       .join('');
     expect(text).toContain('Content A');
@@ -358,12 +363,13 @@ describe('Columns: Roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     expect(block.type).toBe('columns');
     expect(block.columns).toHaveLength(2);
   });
@@ -375,11 +381,12 @@ describe('Columns: Roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     expect(block.widths).toEqual([30, 70]);
   });
 
@@ -393,14 +400,15 @@ describe('Columns: Roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     // First column should have bold op
     const hasBold = block.columns[0]!.ops.some(
-      (op) => op.attributes && (op.attributes as Record<string, unknown>).bold === true,
+      (op) => (op as InsertOp).attributes && ((op as InsertOp).attributes as Record<string, unknown>).bold === true,
     );
     expect(hasBold).toBe(true);
   });
@@ -416,11 +424,12 @@ describe('Columns: Roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
+        'insert' in op &&
         typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const block = (blockOp!.insert as Record<string, unknown>).block as ColumnsBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as ColumnsBlockData;
     expect(block.columns).toHaveLength(3);
   });
 });

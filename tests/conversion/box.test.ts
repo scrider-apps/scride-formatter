@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -248,7 +249,7 @@ describe('Box: HTML → Delta', () => {
       '<div class="inline-box" data-float="left" style="width: 200px; height: 300px"><p>Content</p></div>';
     const delta = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(delta.ops);
+    const blockOp = findBlockOp(delta.ops as InsertOp[]);
     expect(blockOp).toBeDefined();
 
     const block = (blockOp!.insert as { block: BoxBlockData }).block;
@@ -266,7 +267,7 @@ describe('Box: HTML → Delta', () => {
       '<div class="inline-box" data-float="right" data-overflow="hidden" style="width: 30%"><p>Note</p></div>';
     const delta = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(delta.ops);
+    const blockOp = findBlockOp(delta.ops as InsertOp[]);
     expect(blockOp).toBeDefined();
     const attrs = getOpAttrs(blockOp!);
     expect(attrs.float).toBe('right');
@@ -279,7 +280,7 @@ describe('Box: HTML → Delta', () => {
       '<div class="inline-box" data-float="center" style="width: 400px; height: 200px"><p>Centered</p></div>';
     const delta = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(delta.ops);
+    const blockOp = findBlockOp(delta.ops as InsertOp[]);
     expect(blockOp).toBeDefined();
     const attrs = getOpAttrs(blockOp!);
     expect(attrs.float).toBe('center');
@@ -289,8 +290,8 @@ describe('Box: HTML → Delta', () => {
     const html = '<div class="inline-box" data-float="left"><p>Fallback</p></div>';
     const delta = htmlToDelta(html, {});
     // Without blockHandlers, content is parsed as normal text
-    const text = delta.ops
-      .map((op): string => (typeof op.insert === 'string' ? (op.insert as string) : ''))
+    const text = (delta.ops as InsertOp[])
+      .map((op): string => (typeof op.insert === 'string' ? (op.insert) : ''))
       .join('');
     expect(text).toContain('Fallback');
   });
@@ -340,7 +341,7 @@ describe('Box: Roundtrip', () => {
     const html = deltaToHtml(original, { blockHandlers });
     const restored = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(restored.ops);
+    const blockOp = findBlockOp(restored.ops as InsertOp[]);
     expect(blockOp).toBeDefined();
 
     const block = (blockOp!.insert as { block: BoxBlockData }).block;
@@ -360,7 +361,7 @@ describe('Box: Roundtrip', () => {
     const html = deltaToHtml(original, { blockHandlers });
     const restored = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(restored.ops);
+    const blockOp = findBlockOp(restored.ops as InsertOp[]);
     const attrs = getOpAttrs(blockOp!);
     expect(attrs.float).toBe('right');
     expect(attrs.width).toBe('30%');
@@ -375,7 +376,7 @@ describe('Box: Roundtrip', () => {
     const html = deltaToHtml(original, { blockHandlers });
     const restored = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(restored.ops);
+    const blockOp = findBlockOp(restored.ops as InsertOp[]);
     const attrs = getOpAttrs(blockOp!);
     expect(attrs.float).toBe('center');
   });
@@ -390,7 +391,7 @@ describe('Box: Roundtrip', () => {
     const html = deltaToHtml(original, { blockHandlers });
     const restored = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(restored.ops);
+    const blockOp = findBlockOp(restored.ops as InsertOp[]);
     const attrs = getOpAttrs(blockOp!);
     expect(attrs.overflow).toBe('hidden');
   });
@@ -407,14 +408,14 @@ describe('Box: Roundtrip', () => {
     const html = deltaToHtml(original, { blockHandlers });
     const restored = htmlToDelta(html, { blockHandlers });
 
-    const blockOp = findBlockOp(restored.ops);
+    const blockOp = findBlockOp(restored.ops as InsertOp[]);
     expect(blockOp).toBeDefined();
 
     const block = (blockOp!.insert as { block: BoxBlockData }).block;
     expect(block.type).toBe('box');
     // Content should contain bold text and header
     const textContent = block.content.ops
-      .filter((op): op is { insert: string } => typeof op.insert === 'string')
+      .filter((op): op is InsertOp & { insert: string } => 'insert' in op && typeof op.insert === 'string')
       .map((op) => op.insert)
       .join('');
     expect(textContent).toContain('Title');

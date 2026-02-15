@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -189,12 +190,12 @@ describe('Alerts: HTML → Delta', () => {
     const delta = htmlToDelta(html, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     expect(block.type).toBe('alert');
     expect(block.alertType).toBe('note');
   });
@@ -210,12 +211,12 @@ describe('Alerts: HTML → Delta', () => {
       const delta = htmlToDelta(html, { blockHandlers });
       const blockOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'object' &&
+          'insert' in op && typeof op.insert === 'object' &&
           op.insert !== null &&
-          'block' in (op.insert as Record<string, unknown>),
+          'block' in (op.insert),
       );
       expect(blockOp).toBeDefined();
-      const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+      const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
       expect(block.alertType).toBe(t);
     }
   });
@@ -230,15 +231,15 @@ describe('Alerts: HTML → Delta', () => {
     const delta = htmlToDelta(html, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     // Content should contain "Watch out!" but NOT "Warning" (the title)
     const textContent = block.content.ops
-      .filter((op) => typeof op.insert === 'string')
-      .map((op) => op.insert as string)
+      .filter((op) => 'insert' in op && typeof op.insert === 'string')
+      .map((op) => (op as InsertOp).insert as string)
       .join('');
     expect(textContent).toContain('Watch out!');
     expect(textContent).not.toContain('Warning');
@@ -283,12 +284,12 @@ describe('Alerts: Markdown → Delta', () => {
     const delta = await markdownToDelta(md, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     expect(block.type).toBe('alert');
     expect(block.alertType).toBe('note');
   });
@@ -299,12 +300,12 @@ describe('Alerts: Markdown → Delta', () => {
       const delta = await markdownToDelta(md, { blockHandlers });
       const blockOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'object' &&
+          'insert' in op && typeof op.insert === 'object' &&
           op.insert !== null &&
-          'block' in (op.insert as Record<string, unknown>),
+          'block' in (op.insert),
       );
       expect(blockOp).toBeDefined();
-      const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+      const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
       expect(block.alertType).toBe(t);
     }
   });
@@ -314,15 +315,15 @@ describe('Alerts: Markdown → Delta', () => {
     const delta = await markdownToDelta(md, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     // Check that bold attribute exists in nested ops
     const hasBold = block.content.ops.some(
-      (op) => op.attributes && (op.attributes as Record<string, unknown>).bold === true,
+      (op) => 'attributes' in op && op.attributes && (op.attributes as Record<string, unknown>).bold === true,
     );
     expect(hasBold).toBe(true);
   });
@@ -333,14 +334,14 @@ describe('Alerts: Markdown → Delta', () => {
     // Should NOT produce a block embed
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeUndefined();
     // Should have blockquote attribute
     const bqOp = delta.ops.find(
-      (op) => op.attributes && (op.attributes as Record<string, unknown>).blockquote === true,
+      (op) => 'attributes' in op && op.attributes && (op.attributes as Record<string, unknown>).blockquote === true,
     );
     expect(bqOp).toBeDefined();
   });
@@ -350,16 +351,16 @@ describe('Alerts: Markdown → Delta', () => {
     const delta = await markdownToDelta(md, { blockHandlers });
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     expect(block.alertType).toBe('warning');
     const text = block.content.ops
-      .filter((op) => typeof op.insert === 'string')
-      .map((op) => op.insert as string)
+      .filter((op) => 'insert' in op && typeof op.insert === 'string')
+      .map((op) => (op as InsertOp).insert as string)
       .join('');
     expect(text).toContain('First paragraph.');
     expect(text).toContain('Second paragraph.');
@@ -378,12 +379,12 @@ describe('Alerts: Roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     expect(block.type).toBe('alert');
     expect(block.alertType).toBe('caution');
   });
@@ -395,12 +396,12 @@ describe('Alerts: Roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp!.insert as Record<string, unknown>).block as AlertBlockData;
+    const block = ((blockOp as InsertOp).insert as Record<string, unknown>).block as AlertBlockData;
     expect(block.type).toBe('alert');
     expect(block.alertType).toBe('tip');
   });

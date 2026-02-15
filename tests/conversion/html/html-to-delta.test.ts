@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { InsertOp } from '@scrider/delta';
 import { htmlToDelta } from '../../../src/conversion/html/html-to-delta';
 
 describe('htmlToDelta', () => {
@@ -493,7 +494,7 @@ describe('htmlToDelta', () => {
       });
 
       // Whitespace is preserved
-      expect(delta.ops[0].insert).toContain('    ');
+      expect((delta.ops[0] as InsertOp).insert).toContain('    ');
     });
   });
 

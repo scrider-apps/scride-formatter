@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp, RetainOp } from '@scrider/delta';
 import { Registry } from '../../src/schema/Registry';
 import { createDefaultRegistry } from '../../src/schema/defaults';
 import {
@@ -28,7 +29,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toEqual({
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({
         bold: true,
         italic: true,
       });
@@ -44,7 +45,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry, { removeUnknown: false });
 
-      expect(clean.ops[0].attributes).toEqual({
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({
         bold: true,
         unknown: 'value',
       });
@@ -60,7 +61,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toBeUndefined();
+      expect((clean.ops[0] as InsertOp).attributes).toBeUndefined();
     });
   });
 
@@ -72,8 +73,8 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toEqual({ bold: true });
-      expect(clean.ops[1].attributes).toBeUndefined();
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({ bold: true });
+      expect((clean.ops[1] as InsertOp).attributes).toBeUndefined();
     });
 
     it('removes bold:false (invalid)', () => {
@@ -83,7 +84,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toBeUndefined();
+      expect((clean.ops[0] as InsertOp).attributes).toBeUndefined();
     });
 
     it('keeps valid values', () => {
@@ -93,7 +94,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toEqual({ header: 1 });
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({ header: 1 });
     });
   });
 
@@ -105,7 +106,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toEqual({ color: '#ff0000' });
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({ color: '#ff0000' });
     });
 
     it('normalizes rgb colors', () => {
@@ -115,7 +116,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toEqual({ color: '#0080ff' });
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({ color: '#0080ff' });
     });
 
     it('skips normalization when normalize is false', () => {
@@ -125,7 +126,7 @@ describe('sanitizeDelta', () => {
 
       const clean = sanitizeDelta(dirty, registry, { normalize: false });
 
-      expect(clean.ops[0].attributes).toEqual({ color: 'red' });
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({ color: 'red' });
     });
 
     it('normalizes header values (clamping)', () => {
@@ -136,7 +137,7 @@ describe('sanitizeDelta', () => {
       // Header 7 is invalid and will be removed, not normalized
       const clean = sanitizeDelta(dirty, registry);
 
-      expect(clean.ops[0].attributes).toBeUndefined();
+      expect((clean.ops[0] as InsertOp).attributes).toBeUndefined();
     });
   });
 
@@ -235,7 +236,7 @@ describe('sanitizeDelta', () => {
       const clean = sanitizeDelta(dirty, registry);
 
       expect(clean.ops[0]).toEqual({ retain: 5 });
-      expect(clean.ops[0].attributes).toBeUndefined();
+      expect((clean.ops[0] as RetainOp).attributes).toBeUndefined();
     });
   });
 
@@ -263,9 +264,9 @@ describe('sanitizeDelta', () => {
       const clean = sanitizeDelta(dirty, registry);
 
       expect(clean.ops.length).toBe(3);
-      expect(clean.ops[0].insert).toBe('Hello ');
-      expect(clean.ops[1].insert).toBe('World');
-      expect(clean.ops[2].insert).toBe('\n');
+      expect((clean.ops[0] as InsertOp).insert).toBe('Hello ');
+      expect((clean.ops[1] as InsertOp).insert).toBe('World');
+      expect((clean.ops[2] as InsertOp).insert).toBe('\n');
     });
 
     it('handles empty delta', () => {
@@ -312,7 +313,7 @@ describe('sanitizeDelta', () => {
 
       // Different reference because unknown was removed
       expect(clean.ops[0]).not.toBe(op);
-      expect(clean.ops[0].attributes).toEqual({ bold: true });
+      expect((clean.ops[0] as InsertOp).attributes).toEqual({ bold: true });
     });
   });
 });
@@ -328,7 +329,7 @@ describe('normalizeDelta', () => {
 
     const normalized = normalizeDelta(dirty, registry);
 
-    expect(normalized.ops[0].attributes).toEqual({
+    expect((normalized.ops[0] as InsertOp).attributes).toEqual({
       color: '#ff0000',
       unknown: 'value',
     });
@@ -342,7 +343,7 @@ describe('normalizeDelta', () => {
     const normalized = normalizeDelta(dirty, registry);
 
     // Header 10 is not valid - normalizeDelta removes invalid values during sanitization
-    const attrs = normalized.ops[0].attributes as Record<string, unknown> | undefined;
+    const attrs = (normalized.ops[0] as InsertOp).attributes as Record<string, unknown> | undefined;
     expect(attrs?.header).toBeUndefined();
   });
 });
@@ -407,16 +408,16 @@ describe('cloneDelta', () => {
     expect(cloned.ops).toEqual(original.ops);
     expect(cloned.ops).not.toBe(original.ops);
     expect(cloned.ops[0]).not.toBe(original.ops[0]);
-    expect(cloned.ops[0].attributes).not.toBe(original.ops[0].attributes);
+    expect((cloned.ops[0] as InsertOp).attributes).not.toBe((original.ops[0] as InsertOp).attributes);
   });
 
   it('modifications to clone do not affect original', () => {
     const original = new Delta().insert('Hello', { bold: true });
 
     const cloned = cloneDelta(original);
-    const clonedAttrs = cloned.ops[0].attributes as Record<string, unknown>;
+    const clonedAttrs = (cloned.ops[0] as InsertOp).attributes as Record<string, unknown>;
     clonedAttrs.italic = true;
 
-    expect(original.ops[0].attributes).toEqual({ bold: true });
+    expect((original.ops[0] as InsertOp).attributes).toEqual({ bold: true });
   });
 });

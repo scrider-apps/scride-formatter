@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { createDefaultBlockHandlers } from '../../src/schema/defaults';
@@ -100,7 +101,7 @@ describe('Image float: HTML → Delta', () => {
   it('parses img with data-float', () => {
     const html = '<img src="photo.jpg" data-float="left" width="200" height="150">';
     const delta = htmlToDelta(html);
-    const op = findEmbedOp(delta.ops, 'image');
+    const op = findEmbedOp(delta.ops as InsertOp[], 'image');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('left');
@@ -111,7 +112,7 @@ describe('Image float: HTML → Delta', () => {
   it('parses img without data-float (no float attr)', () => {
     const html = '<img src="photo.jpg" width="200">';
     const delta = htmlToDelta(html);
-    const op = findEmbedOp(delta.ops, 'image');
+    const op = findEmbedOp(delta.ops as InsertOp[], 'image');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBeUndefined();
@@ -121,7 +122,7 @@ describe('Image float: HTML → Delta', () => {
   it('parses img with float right and alt', () => {
     const html = '<img src="photo.jpg" alt="Description" data-float="right" width="300">';
     const delta = htmlToDelta(html);
-    const op = findEmbedOp(delta.ops, 'image');
+    const op = findEmbedOp(delta.ops as InsertOp[], 'image');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('right');
@@ -195,7 +196,7 @@ describe('Video float: HTML → Delta', () => {
     const html =
       '<video src="https://example.com/video.mp4" controls data-float="left" style="width: 300px; height: 200px"></video>';
     const delta = htmlToDelta(html);
-    const op = findEmbedOp(delta.ops, 'video');
+    const op = findEmbedOp(delta.ops as InsertOp[], 'video');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('left');
@@ -207,7 +208,7 @@ describe('Video float: HTML → Delta', () => {
     const html =
       '<iframe src="https://www.youtube.com/embed/abc123" frameborder="0" allowfullscreen data-float="right" style="width: 400px"></iframe>';
     const delta = htmlToDelta(html);
-    const op = findEmbedOp(delta.ops, 'video');
+    const op = findEmbedOp(delta.ops as InsertOp[], 'video');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('right');
@@ -217,7 +218,7 @@ describe('Video float: HTML → Delta', () => {
   it('parses video without data-float (no float attr)', () => {
     const html = '<video src="https://example.com/video.mp4" controls></video>';
     const delta = htmlToDelta(html);
-    const op = findEmbedOp(delta.ops, 'video');
+    const op = findEmbedOp(delta.ops as InsertOp[], 'video');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBeUndefined();
@@ -236,7 +237,7 @@ describe('Embed float: Roundtrip', () => {
     const html = deltaToHtml(original);
     const restored = htmlToDelta(html);
 
-    const op = findEmbedOp(restored.ops, 'image');
+    const op = findEmbedOp(restored.ops as InsertOp[], 'image');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('left');
@@ -251,7 +252,7 @@ describe('Embed float: Roundtrip', () => {
     const html = deltaToHtml(original);
     const restored = htmlToDelta(html);
 
-    const op = findEmbedOp(restored.ops, 'image');
+    const op = findEmbedOp(restored.ops as InsertOp[], 'image');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('right');
@@ -269,7 +270,7 @@ describe('Embed float: Roundtrip', () => {
     const html = deltaToHtml(original);
     const restored = htmlToDelta(html);
 
-    const op = findEmbedOp(restored.ops, 'video');
+    const op = findEmbedOp(restored.ops as InsertOp[], 'video');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBe('left');
@@ -282,7 +283,7 @@ describe('Embed float: Roundtrip', () => {
     const html = deltaToHtml(original);
     const restored = htmlToDelta(html);
 
-    const op = findEmbedOp(restored.ops, 'image');
+    const op = findEmbedOp(restored.ops as InsertOp[], 'image');
     expect(op).toBeDefined();
     const attrs = getOpAttrs(op!);
     expect(attrs.float).toBeUndefined();

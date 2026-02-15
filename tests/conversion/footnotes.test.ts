@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -30,10 +31,10 @@ const runTests = isRemarkAvailable();
 // ============================================================================
 
 function footnotesDelta(
-  textOps: Array<{ insert: unknown; attributes?: Record<string, unknown> }>,
-  notes: Record<string, { ops: Array<{ insert: unknown; attributes?: Record<string, unknown> }> }>,
+  textOps: InsertOp[],
+  notes: Record<string, { ops: InsertOp[] }>,
 ): Delta {
-  const ops = [
+  const ops: InsertOp[] = [
     ...textOps,
     {
       insert: {
@@ -211,19 +212,19 @@ describe('Footnotes: HTML → Delta', () => {
 
     const hasFootnoteRef = delta.ops.some(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
     expect(hasFootnoteRef).toBe(true);
 
     const refOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
-    expect((refOp!.insert as Record<string, unknown>)['footnote-ref']).toBe('1');
+    expect(((refOp as InsertOp).insert as Record<string, unknown>)['footnote-ref']).toBe('1');
   });
 
   it('parses <section class="footnotes"> to block embed', () => {
@@ -244,13 +245,13 @@ describe('Footnotes: HTML → Delta', () => {
     // Find block embed
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
 
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     expect(blockData.type).toBe('footnotes');
     expect(blockData.notes['1']).toBeDefined();
     expect(blockData.notes['1']!.ops.length).toBeGreaterThan(0);
@@ -270,13 +271,13 @@ describe('Footnotes: HTML → Delta', () => {
 
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
 
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     expect(blockData.notes['1']).toBeDefined();
     expect(blockData.notes['2']).toBeDefined();
   });
@@ -353,23 +354,23 @@ describe.runIf(runTests)('Footnotes: Markdown → Delta', () => {
     // Should have footnote-ref embed
     const refOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
     expect(refOp).toBeDefined();
-    expect((refOp!.insert as Record<string, unknown>)['footnote-ref']).toBe('1');
+    expect(((refOp as InsertOp).insert as Record<string, unknown>)['footnote-ref']).toBe('1');
 
     // Should have footnotes block embed
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
 
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     expect(blockData.type).toBe('footnotes');
     expect(blockData.notes['1']).toBeDefined();
   });
@@ -381,22 +382,22 @@ describe.runIf(runTests)('Footnotes: Markdown → Delta', () => {
     // Two refs
     const refs = delta.ops.filter(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
     expect(refs).toHaveLength(2);
 
     // Footnotes block with two notes
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
 
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     expect(Object.keys(blockData.notes)).toHaveLength(2);
     expect(blockData.notes['1']).toBeDefined();
     expect(blockData.notes['2']).toBeDefined();
@@ -408,19 +409,19 @@ describe.runIf(runTests)('Footnotes: Markdown → Delta', () => {
 
     const refOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
-    expect((refOp!.insert as Record<string, unknown>)['footnote-ref']).toBe('my-note');
+    expect(((refOp as InsertOp).insert as Record<string, unknown>)['footnote-ref']).toBe('my-note');
 
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     expect(blockData.notes['my-note']).toBeDefined();
   });
 
@@ -430,16 +431,16 @@ describe.runIf(runTests)('Footnotes: Markdown → Delta', () => {
 
     const blockOp = delta.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     const noteOps = blockData.notes['1']!.ops;
 
     // Should contain bold attribute
     const boldOp = noteOps.find(
-      (op) => op.attributes && (op.attributes as Record<string, unknown>).bold === true,
+      (op) => 'attributes' in op && op.attributes && (op.attributes as Record<string, unknown>).bold === true,
     );
     expect(boldOp).toBeDefined();
   });
@@ -453,17 +454,17 @@ describe.runIf(runTests)('Footnotes: Markdown → Delta', () => {
 
     const hasRef = delta.ops.some(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
     expect(hasRef).toBe(true);
 
     const hasBlock = delta.ops.some(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(hasBlock).toBe(true);
   });
@@ -486,12 +487,12 @@ describe('Footnotes: Delta → HTML → Delta roundtrip', () => {
 
     const refOp = restored.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
     expect(refOp).toBeDefined();
-    expect((refOp!.insert as Record<string, unknown>)['footnote-ref']).toBe('1');
+    expect(((refOp as InsertOp).insert as Record<string, unknown>)['footnote-ref']).toBe('1');
   });
 
   it('roundtrips footnotes block embed', () => {
@@ -507,13 +508,13 @@ describe('Footnotes: Delta → HTML → Delta roundtrip', () => {
 
     const blockOp = restored.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
 
-    const blockData = (blockOp!.insert as Record<string, unknown>).block as FootnotesBlockData;
+    const blockData = ((blockOp as InsertOp).insert as Record<string, unknown>).block as FootnotesBlockData;
     expect(blockData.type).toBe('footnotes');
     expect(blockData.notes['1']).toBeDefined();
   });
@@ -539,18 +540,18 @@ describe.runIf(runTests)('Footnotes: Delta → Markdown → Delta roundtrip', ()
     // Should have footnote-ref
     const refOp = restored.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'footnote-ref' in (op.insert as Record<string, unknown>),
+        'footnote-ref' in (op.insert),
     );
     expect(refOp).toBeDefined();
 
     // Should have footnotes block
     const blockOp = restored.ops.find(
       (op) =>
-        typeof op.insert === 'object' &&
+        'insert' in op && typeof op.insert === 'object' &&
         op.insert !== null &&
-        'block' in (op.insert as Record<string, unknown>),
+        'block' in (op.insert),
     );
     expect(blockOp).toBeDefined();
   });

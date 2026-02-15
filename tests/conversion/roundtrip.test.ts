@@ -31,9 +31,9 @@ function deltasAreEquivalent(a: Delta, b: Delta): boolean {
   const flattenDelta = (delta: Delta): string => {
     let text = '';
     for (const op of delta.ops) {
-      if (typeof op.insert === 'string') {
+      if ('insert' in op && typeof op.insert === 'string') {
         text += op.insert;
-      } else if (typeof op.insert === 'object') {
+      } else if ('insert' in op && typeof op.insert === 'object') {
         // Embed - serialize as JSON
         text += JSON.stringify(op.insert);
       }
@@ -136,8 +136,9 @@ describe('Round-trip: Delta → HTML → Delta', () => {
     expect(
       restored.ops.some(
         (op) =>
+          'insert' in op &&
           typeof op.insert === 'object' &&
-          (op.insert as Record<string, unknown>).image === 'https://example.com/img.png',
+          (op.insert).image === 'https://example.com/img.png',
       ),
     ).toBe(true);
   });
@@ -250,8 +251,9 @@ describe.runIf(runMarkdownTests)('Round-trip: Delta → Markdown → Delta', () 
     expect(
       restored.ops.some(
         (op) =>
+          'insert' in op &&
           typeof op.insert === 'object' &&
-          (op.insert as Record<string, unknown>).image === 'https://example.com/img.png',
+          (op.insert).image === 'https://example.com/img.png',
       ),
     ).toBe(true);
   });

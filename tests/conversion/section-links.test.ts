@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -220,7 +221,7 @@ describe('HTML → Delta (header id parsing)', () => {
   it('skips computed id (matches slugify)', () => {
     const html = '<h2 id="getting-started">Getting Started</h2>';
     const delta = htmlToDelta(html);
-    const attrs = delta.ops[1]?.attributes as Record<string, unknown> | undefined;
+    const attrs = (delta.ops[1] as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined;
     expect(attrs).toEqual({ header: 2 });
     expect(attrs?.['header-id']).toBeUndefined();
   });
@@ -228,14 +229,14 @@ describe('HTML → Delta (header id parsing)', () => {
   it('stores custom id (does not match slugify)', () => {
     const html = '<h2 id="start">Getting Started</h2>';
     const delta = htmlToDelta(html);
-    const attrs = delta.ops[1]?.attributes as Record<string, unknown> | undefined;
+    const attrs = (delta.ops[1] as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined;
     expect(attrs).toEqual({ header: 2, 'header-id': 'start' });
   });
 
   it('handles heading without id', () => {
     const html = '<h1>Hello</h1>';
     const delta = htmlToDelta(html);
-    const attrs = delta.ops[1]?.attributes as Record<string, unknown> | undefined;
+    const attrs = (delta.ops[1] as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined;
     expect(attrs).toEqual({ header: 1 });
     expect(attrs?.['header-id']).toBeUndefined();
   });
@@ -243,7 +244,7 @@ describe('HTML → Delta (header id parsing)', () => {
   it('handles h1-h6 with custom ids', () => {
     const html = '<h3 id="custom">Title</h3>';
     const delta = htmlToDelta(html);
-    const attrs = delta.ops[1]?.attributes as Record<string, unknown> | undefined;
+    const attrs = (delta.ops[1] as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined;
     expect(attrs).toEqual({ header: 3, 'header-id': 'custom' });
   });
 });
@@ -257,18 +258,18 @@ describe('Markdown → Delta ({#id} parsing)', () => {
     const md = '## Getting Started {#start}';
     const delta = await markdownToDelta(md);
     const lastOp = delta.ops[delta.ops.length - 1];
-    expect(lastOp?.attributes).toEqual({ header: 2, 'header-id': 'start' });
+    expect((lastOp as InsertOp | undefined)?.attributes).toEqual({ header: 2, 'header-id': 'start' });
     // Text should not contain {#start}
-    expect(delta.ops[0]?.insert).toBe('Getting Started');
+    expect((delta.ops[0] as InsertOp | undefined)?.insert).toBe('Getting Started');
   });
 
   (runTests ? it : it.skip)('heading without {#id} has no header-id', async () => {
     const md = '## Getting Started';
     const delta = await markdownToDelta(md);
     const lastOp = delta.ops[delta.ops.length - 1];
-    expect(lastOp?.attributes).toEqual({ header: 2 });
+    expect((lastOp as InsertOp | undefined)?.attributes).toEqual({ header: 2 });
     expect(
-      (lastOp?.attributes as Record<string, unknown> | undefined)?.['header-id'],
+      ((lastOp as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined)?.['header-id'],
     ).toBeUndefined();
   });
 
@@ -276,7 +277,7 @@ describe('Markdown → Delta ({#id} parsing)', () => {
     const md = '# Title {#my-section-1}';
     const delta = await markdownToDelta(md);
     const lastOp = delta.ops[delta.ops.length - 1];
-    expect(lastOp?.attributes).toEqual({ header: 1, 'header-id': 'my-section-1' });
+    expect((lastOp as InsertOp | undefined)?.attributes).toEqual({ header: 1, 'header-id': 'my-section-1' });
   });
 
   (runTests ? it : it.skip)('handles multiple headings with different ids', async () => {
@@ -284,7 +285,7 @@ describe('Markdown → Delta ({#id} parsing)', () => {
     const delta = await markdownToDelta(md);
     // Find newlines with header attrs
     const headerOps = delta.ops.filter(
-      (op) => op.insert === '\n' && op.attributes && 'header' in op.attributes,
+      (op): op is InsertOp => 'insert' in op && op.insert === '\n' && !!op.attributes && 'header' in op.attributes,
     );
     expect(headerOps[0]?.attributes).toEqual({ header: 1, 'header-id': 'intro' });
     expect(headerOps[1]?.attributes).toEqual({ header: 2, 'header-id': 'setup' });
@@ -349,7 +350,7 @@ describe('Roundtrip', () => {
     const html = deltaToHtml(delta, { anchorLinks: true });
     expect(html).toContain('id="start"');
     const delta2 = htmlToDelta(html);
-    const attrs = delta2.ops[1]?.attributes as Record<string, unknown> | undefined;
+    const attrs = (delta2.ops[1] as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined;
     expect(attrs?.['header-id']).toBe('start');
   });
 
@@ -358,7 +359,7 @@ describe('Roundtrip', () => {
     const html = deltaToHtml(delta, { anchorLinks: true });
     expect(html).toContain('id="getting-started"');
     const delta2 = htmlToDelta(html);
-    const attrs = delta2.ops[1]?.attributes as Record<string, unknown> | undefined;
+    const attrs = (delta2.ops[1] as InsertOp | undefined)?.attributes as Record<string, unknown> | undefined;
     // Computed id should NOT be stored in Delta
     expect(attrs?.['header-id']).toBeUndefined();
     expect(attrs).toEqual({ header: 2 });

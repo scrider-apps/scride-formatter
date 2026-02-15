@@ -10,6 +10,7 @@ import {
   markdownToDeltaSync,
 } from '../../../src/conversion/markdown';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 
 // Skip tests if remark is not available
 const runTests = isRemarkAvailable();
@@ -322,12 +323,12 @@ This is a **bold** paragraph.
 
       const formulaOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'object' &&
+          'insert' in op && typeof op.insert === 'object' &&
           op.insert !== null &&
-          'formula' in (op.insert as Record<string, unknown>),
+          'formula' in (op.insert),
       );
       expect(formulaOp).toBeDefined();
-      expect((formulaOp!.insert as Record<string, unknown>).formula).toBe('E = mc^2');
+      expect(((formulaOp as InsertOp).insert as Record<string, unknown>).formula).toBe('E = mc^2');
     });
 
     it('parses \\[ ... \\] as display math block', async () => {
@@ -336,9 +337,9 @@ This is a **bold** paragraph.
 
       const mathLineOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'string' &&
+          'insert' in op && typeof op.insert === 'string' &&
           op.insert === '\n' &&
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(mathLineOp).toBeDefined();
@@ -373,9 +374,9 @@ This is a **bold** paragraph.
 
       const mathLineOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'string' &&
+          'insert' in op && typeof op.insert === 'string' &&
           op.insert === '\n' &&
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(mathLineOp).toBeDefined();
@@ -387,15 +388,15 @@ This is a **bold** paragraph.
 
       // Should have a formula embed, NOT a code-block
       const formulaOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
       );
       expect(formulaOp).toBeDefined();
-      expect((formulaOp!.insert as Record<string, unknown>).formula).toBe('x^2 + y^2 = z^2');
+      expect(((formulaOp as InsertOp).insert as Record<string, unknown>).formula).toBe('x^2 + y^2 = z^2');
 
       // Should NOT have code-block: "math"
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(codeBlockOp).toBeUndefined();
@@ -406,10 +407,10 @@ This is a **bold** paragraph.
       const delta = await markdownToDelta(md, { mathBlock: false });
 
       const formulaOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
       );
       expect(formulaOp).toBeDefined();
-      expect((formulaOp!.insert as Record<string, unknown>).formula).toBe('E = mc^2');
+      expect(((formulaOp as InsertOp).insert as Record<string, unknown>).formula).toBe('E = mc^2');
     });
 
     it('roundtrip: mathBlock ON → OFF → ON preserves structure via baseDelta', async () => {
@@ -420,7 +421,7 @@ This is a **bold** paragraph.
       // Verify it's a code-block
       const codeBlockOp = delta1.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(codeBlockOp).toBeDefined();
@@ -434,7 +435,7 @@ This is a **bold** paragraph.
       // Parse in OFF mode → inline formula
       const deltaOff = await markdownToDelta(mdOff, { mathBlock: false });
       const formulaOp = deltaOff.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
       );
       expect(formulaOp).toBeDefined();
     });
@@ -446,7 +447,7 @@ This is a **bold** paragraph.
 
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(codeBlockOp).toBeDefined();
@@ -460,7 +461,7 @@ This is a **bold** paragraph.
 
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(codeBlockOp).toBeDefined();
@@ -472,14 +473,14 @@ This is a **bold** paragraph.
       const delta = await markdownToDelta(md, { mathBlock: true });
 
       const formulaOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
       );
       expect(formulaOp).toBeDefined();
 
       // Should NOT have code-block
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(codeBlockOp).toBeUndefined();
@@ -490,14 +491,14 @@ This is a **bold** paragraph.
       const delta = await markdownToDelta(md, { mathBlock: false });
 
       const formulaOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'formula' in op.insert,
       );
       expect(formulaOp).toBeDefined();
 
       // Should NOT have code-block
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'math',
       );
       expect(codeBlockOp).toBeUndefined();
@@ -511,16 +512,16 @@ This is a **bold** paragraph.
 
       const mermaidOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'string' &&
+          'insert' in op && typeof op.insert === 'string' &&
           op.insert === '\n' &&
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'mermaid',
       );
       expect(mermaidOp).toBeDefined();
 
       // Should contain the diagram text
-      const textOps = delta.ops.filter((op) => typeof op.insert === 'string' && op.insert !== '\n');
-      const text = textOps.map((op) => String(op.insert)).join('');
+      const textOps = delta.ops.filter((op): op is InsertOp => 'insert' in op && typeof op.insert === 'string' && op.insert !== '\n');
+      const text = textOps.map((op) => op.insert as string).join('');
       expect(text).toContain('graph TD');
       expect(text).toContain('A-->B');
     });
@@ -533,7 +534,7 @@ This is a **bold** paragraph.
       // All code lines should have code-block: "mermaid"
       const mermaidOps = delta.ops.filter(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'mermaid',
       );
       expect(mermaidOps.length).toBe(3); // 3 lines
@@ -554,9 +555,9 @@ This is a **bold** paragraph.
 
       const mermaidOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'string' &&
+          'insert' in op && typeof op.insert === 'string' &&
           op.insert === '\n' &&
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'mermaid',
       );
       expect(mermaidOp).toBeDefined();
@@ -568,15 +569,15 @@ This is a **bold** paragraph.
 
       // Should have a diagram embed, NOT a code-block
       const diagramOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'diagram' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'diagram' in op.insert,
       );
       expect(diagramOp).toBeDefined();
-      expect((diagramOp!.insert as Record<string, unknown>).diagram).toBe('graph TD\n    A-->B');
+      expect(((diagramOp as InsertOp).insert as Record<string, unknown>).diagram).toBe('graph TD\n    A-->B');
 
       // Should NOT have code-block mermaid
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'mermaid',
       );
       expect(codeBlockOp).toBeUndefined();
@@ -589,14 +590,14 @@ This is a **bold** paragraph.
       // JavaScript code block should still be a code-block
       const jsOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'javascript',
       );
       expect(jsOp).toBeDefined();
 
       // No diagram embed
       const diagramOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'diagram' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'diagram' in op.insert,
       );
       expect(diagramOp).toBeUndefined();
     });
@@ -608,7 +609,7 @@ This is a **bold** paragraph.
       const delta1 = await markdownToDelta(md, { mermaidBlock: true });
       const codeBlockOp = delta1.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'mermaid',
       );
       expect(codeBlockOp).toBeDefined();
@@ -627,15 +628,15 @@ This is a **bold** paragraph.
 
       const plantumlOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'string' &&
+          'insert' in op && typeof op.insert === 'string' &&
           op.insert === '\n' &&
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'plantuml',
       );
       expect(plantumlOp).toBeDefined();
 
-      const textOps = delta.ops.filter((op) => typeof op.insert === 'string' && op.insert !== '\n');
-      const text = textOps.map((op) => String(op.insert)).join('');
+      const textOps = delta.ops.filter((op): op is InsertOp => 'insert' in op && typeof op.insert === 'string' && op.insert !== '\n');
+      const text = textOps.map((op) => op.insert as string).join('');
       expect(text).toContain('@startuml');
       expect(text).toContain('Alice -> Bob: Hello');
     });
@@ -655,9 +656,9 @@ This is a **bold** paragraph.
 
       const plantumlOp = delta.ops.find(
         (op) =>
-          typeof op.insert === 'string' &&
+          'insert' in op && typeof op.insert === 'string' &&
           op.insert === '\n' &&
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'plantuml',
       );
       expect(plantumlOp).toBeDefined();
@@ -669,17 +670,17 @@ This is a **bold** paragraph.
 
       // Should have a diagram embed, NOT a code-block
       const diagramOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'diagram' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'diagram' in op.insert,
       );
       expect(diagramOp).toBeDefined();
-      expect((diagramOp!.insert as Record<string, unknown>).diagram).toBe(
+      expect(((diagramOp as InsertOp).insert as Record<string, unknown>).diagram).toBe(
         '@startuml\nAlice -> Bob: Hello\n@enduml',
       );
 
       // Should NOT have code-block plantuml
       const codeBlockOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'plantuml',
       );
       expect(codeBlockOp).toBeUndefined();
@@ -692,7 +693,7 @@ This is a **bold** paragraph.
       // Mermaid should still be a code-block
       const mermaidOp = delta.ops.find(
         (op) =>
-          op.attributes != null &&
+          'attributes' in op && op.attributes != null &&
           (op.attributes as Record<string, unknown>)['code-block'] === 'mermaid',
       );
       expect(mermaidOp).toBeDefined();
@@ -723,15 +724,15 @@ This is a **bold** paragraph.
       const delta = await markdownToDelta(md);
 
       const drawioOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'drawio' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'drawio' in op.insert,
       );
       expect(drawioOp).toBeDefined();
-      expect((drawioOp!.insert as Record<string, unknown>).drawio).toBe('./assets/diagram.drawio');
-      expect(drawioOp!.attributes).toEqual({ alt: 'C4 Model' });
+      expect(((drawioOp as InsertOp).insert as Record<string, unknown>).drawio).toBe('./assets/diagram.drawio');
+      expect((drawioOp as InsertOp).attributes).toEqual({ alt: 'C4 Model' });
 
       // Should NOT be an image embed
       const imageOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'image' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'image' in op.insert,
       );
       expect(imageOp).toBeUndefined();
     });
@@ -741,12 +742,12 @@ This is a **bold** paragraph.
       const delta = await markdownToDelta(md);
 
       const imageOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'image' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'image' in op.insert,
       );
       expect(imageOp).toBeDefined();
 
       const drawioOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'drawio' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'drawio' in op.insert,
       );
       expect(drawioOp).toBeUndefined();
     });
@@ -762,10 +763,10 @@ This is a **bold** paragraph.
       // Parse back
       const delta2 = await markdownToDelta(md);
       const drawioOp = delta2.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'drawio' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'drawio' in op.insert,
       );
       expect(drawioOp).toBeDefined();
-      expect((drawioOp!.insert as Record<string, unknown>).drawio).toBe('./assets/model.drawio');
+      expect(((drawioOp as InsertOp).insert as Record<string, unknown>).drawio).toBe('./assets/model.drawio');
     });
 
     it('{ drawio } embed without alt → ![](path.drawio)', () => {

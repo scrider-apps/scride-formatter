@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
-import type { AttributeMap } from '@scrider/delta';
+import type { AttributeMap, InsertOp } from '@scrider/delta';
 import { Registry } from '../../src/schema/Registry';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
@@ -135,10 +135,10 @@ describe('Custom Format Integration', () => {
 
       // Should have the custom embed op
       const embedOp = ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'stackblitz' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'stackblitz' in op.insert,
       );
       expect(embedOp).toBeDefined();
-      expect((embedOp!.insert as Record<string, unknown>).stackblitz).toBe(
+      expect(((embedOp as InsertOp).insert as Record<string, unknown>).stackblitz).toBe(
         'https://stackblitz.com/edit/my-app',
       );
     });
@@ -150,7 +150,7 @@ describe('Custom Format Integration', () => {
       const delta = htmlToDelta(html);
       const ops = delta.ops;
       const embedOp = ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
       );
       expect(embedOp).toBeDefined();
     });
@@ -165,13 +165,13 @@ describe('Custom Format Integration', () => {
       const ops = delta.ops;
 
       const stackblitzOp = ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'stackblitz' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'stackblitz' in op.insert,
       );
       expect(stackblitzOp).toBeDefined();
 
       // Should NOT have a video op
       const videoOp = ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
       );
       expect(videoOp).toBeUndefined();
     });
@@ -188,10 +188,10 @@ describe('Custom Format Integration', () => {
       const restored = htmlToDelta(html, { registry });
 
       const embedOp = restored.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'stackblitz' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'stackblitz' in op.insert,
       );
       expect(embedOp).toBeDefined();
-      expect((embedOp!.insert as Record<string, unknown>).stackblitz).toBe(
+      expect(((embedOp as InsertOp).insert as Record<string, unknown>).stackblitz).toBe(
         'https://stackblitz.com/edit/my-app',
       );
     });
@@ -291,13 +291,13 @@ describe('Custom Format Integration', () => {
 
       const delta = htmlToDelta(html, { registry });
       const embedOp = delta.ops.find(
-        (op) => typeof op.insert === 'object' && op.insert !== null && 'google-map' in op.insert,
+        (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'google-map' in op.insert,
       );
       expect(embedOp).toBeDefined();
-      expect((embedOp!.insert as Record<string, unknown>)['google-map']).toBe(
+      expect(((embedOp as InsertOp).insert as Record<string, unknown>)['google-map']).toBe(
         'https://www.google.com/maps/embed?pb=abc',
       );
-      expect(embedOp!.attributes).toEqual({ width: '600', height: '400' });
+      expect((embedOp as InsertOp).attributes).toEqual({ width: '600', height: '400' });
     });
   });
 });

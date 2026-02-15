@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { Delta } from '@scrider/delta';
+import type { InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -228,10 +229,10 @@ describe.runIf(runTests)('Block HTML Dispatch — Columns', () => {
     const delta = await markdownToDelta(md, { blockHandlers });
     // Should produce a block embed with type "columns"
     const blockOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert,
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp?.insert as Record<string, unknown>)?.block as Record<string, unknown>;
+    const block = ((blockOp as InsertOp | undefined)?.insert as Record<string, unknown>)?.block as Record<string, unknown>;
     expect(block?.type).toBe('columns');
   });
 });
@@ -242,10 +243,10 @@ describe.runIf(runTests)('Block HTML Dispatch — Inline-Box', () => {
       '<div class="inline-box" data-float="left" style="width: 200px"><p>Content</p></div>';
     const delta = await markdownToDelta(md, { blockHandlers });
     const blockOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert,
     );
     expect(blockOp).toBeDefined();
-    const block = (blockOp?.insert as Record<string, unknown>)?.block as Record<string, unknown>;
+    const block = ((blockOp as InsertOp | undefined)?.insert as Record<string, unknown>)?.block as Record<string, unknown>;
     expect(block?.type).toBe('box');
   });
 });
@@ -267,22 +268,22 @@ describe.runIf(runTests)('Block HTML Dispatch — Extended Table', () => {
 describe.runIf(runTests)('HTML entities — remark parsing', () => {
   it('named entity &macr; → Unicode', async () => {
     const delta = await markdownToDelta('A&macr;');
-    expect(delta.ops[0]?.insert).toContain('\u00AF');
+    expect((delta.ops[0] as InsertOp | undefined)?.insert).toContain('\u00AF');
   });
 
   it('named entity &copy; → Unicode', async () => {
     const delta = await markdownToDelta('&copy; 2026');
-    expect(delta.ops[0]?.insert).toContain('\u00A9');
+    expect((delta.ops[0] as InsertOp | undefined)?.insert).toContain('\u00A9');
   });
 
   it('decimal entity &#175; → Unicode', async () => {
     const delta = await markdownToDelta('&#175;');
-    expect(delta.ops[0]?.insert).toContain('\u00AF');
+    expect((delta.ops[0] as InsertOp | undefined)?.insert).toContain('\u00AF');
   });
 
   it('hex entity &#x00AF; → Unicode', async () => {
     const delta = await markdownToDelta('&#x00AF;');
-    expect(delta.ops[0]?.insert).toContain('\u00AF');
+    expect((delta.ops[0] as InsertOp | undefined)?.insert).toContain('\u00AF');
   });
 });
 
@@ -419,10 +420,10 @@ describe.runIf(runTests)('![Video](url) — Markdown image syntax as video embed
   it('![Video](url) → video embed', async () => {
     const delta = await markdownToDelta('![Video](https://www.youtube.com/watch?v=abc123)');
     const videoOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
     );
     expect(videoOp).toBeDefined();
-    expect((videoOp?.insert as Record<string, unknown>)?.video).toBe(
+    expect(((videoOp as InsertOp | undefined)?.insert as Record<string, unknown>)?.video).toBe(
       'https://www.youtube.com/watch?v=abc123',
     );
   });
@@ -430,10 +431,10 @@ describe.runIf(runTests)('![Video](url) — Markdown image syntax as video embed
   it('![video](url) — case-insensitive', async () => {
     const delta = await markdownToDelta('![video](https://example.com/clip.mp4)');
     const videoOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
     );
     expect(videoOp).toBeDefined();
-    expect((videoOp?.insert as Record<string, unknown>)?.video).toBe(
+    expect(((videoOp as InsertOp | undefined)?.insert as Record<string, unknown>)?.video).toBe(
       'https://example.com/clip.mp4',
     );
   });
@@ -441,7 +442,7 @@ describe.runIf(runTests)('![Video](url) — Markdown image syntax as video embed
   it('![VIDEO](url) — uppercase', async () => {
     const delta = await markdownToDelta('![VIDEO](https://vk.com/video123)');
     const videoOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
     );
     expect(videoOp).toBeDefined();
   });
@@ -449,11 +450,11 @@ describe.runIf(runTests)('![Video](url) — Markdown image syntax as video embed
   it('![photo](url) — regular image, NOT video', async () => {
     const delta = await markdownToDelta('![photo](https://example.com/img.jpg)');
     const videoOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'video' in op.insert,
     );
     expect(videoOp).toBeUndefined();
     const imageOp = delta.ops.find(
-      (op) => typeof op.insert === 'object' && op.insert !== null && 'image' in op.insert,
+      (op) => 'insert' in op && typeof op.insert === 'object' && op.insert !== null && 'image' in op.insert,
     );
     expect(imageOp).toBeDefined();
   });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Delta } from '@scrider/delta';
-import type { AttributeMap } from '@scrider/delta';
+import type { AttributeMap, InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
@@ -11,8 +11,9 @@ import { markdownToDelta } from '../../src/conversion/markdown/markdown-to-delta
  */
 function getTableOps(delta: Delta): { attrs: AttributeMap }[] {
   return delta.ops
-    .filter((op) => {
-      const attrs = op.attributes as AttributeMap | undefined;
+    .filter((op): op is InsertOp => {
+      if (!('insert' in op)) return false;
+      const attrs = op.attributes;
       return (
         typeof op.insert === 'string' &&
         op.insert === '\n' &&
@@ -265,18 +266,20 @@ describe('Simple Table', () => {
 
       // Find the bold text op
       const boldOp = delta.ops.find((op) => {
-        const a = op.attributes as AttributeMap | undefined;
+        if (!('insert' in op)) return false;
+        const a = op.attributes;
         return typeof op.insert === 'string' && op.insert === 'Bold' && a?.bold;
       });
       expect(boldOp).toBeDefined();
 
       // Find the link op
       const linkOp = delta.ops.find((op) => {
-        const a = op.attributes as AttributeMap | undefined;
+        if (!('insert' in op)) return false;
+        const a = op.attributes;
         return typeof op.insert === 'string' && op.insert === 'Link' && a?.link;
       });
       expect(linkOp).toBeDefined();
-      expect((linkOp?.attributes as AttributeMap | undefined)?.link).toBe('https://example.com');
+      expect(((linkOp as InsertOp | undefined)?.attributes)?.link).toBe('https://example.com');
     });
   });
 
@@ -388,11 +391,11 @@ describe('Simple Table', () => {
       expect(tableOps[3]!.attrs).toMatchObject({ 'table-row': 1, 'table-col': 1 });
 
       // Check content
-      const nameOp = delta.ops.find((op) => typeof op.insert === 'string' && op.insert === 'Name');
+      const nameOp = delta.ops.find((op) => 'insert' in op && typeof op.insert === 'string' && op.insert === 'Name');
       expect(nameOp).toBeDefined();
 
       const aliceOp = delta.ops.find(
-        (op) => typeof op.insert === 'string' && op.insert === 'Alice',
+        (op) => 'insert' in op && typeof op.insert === 'string' && op.insert === 'Alice',
       );
       expect(aliceOp).toBeDefined();
     });
@@ -414,25 +417,29 @@ describe('Simple Table', () => {
       const delta = await markdownToDelta(md);
 
       const boldOp = delta.ops.find((op) => {
-        const a = op.attributes as AttributeMap | undefined;
+        if (!('insert' in op)) return false;
+        const a = op.attributes;
         return typeof op.insert === 'string' && op.insert === 'Bold' && a?.bold;
       });
       expect(boldOp).toBeDefined();
 
       const italicOp = delta.ops.find((op) => {
-        const a = op.attributes as AttributeMap | undefined;
+        if (!('insert' in op)) return false;
+        const a = op.attributes;
         return typeof op.insert === 'string' && op.insert === 'Italic' && a?.italic;
       });
       expect(italicOp).toBeDefined();
 
       const codeOp = delta.ops.find((op) => {
-        const a = op.attributes as AttributeMap | undefined;
+        if (!('insert' in op)) return false;
+        const a = op.attributes;
         return typeof op.insert === 'string' && op.insert === 'code' && a?.code;
       });
       expect(codeOp).toBeDefined();
 
       const linkOp = delta.ops.find((op) => {
-        const a = op.attributes as AttributeMap | undefined;
+        if (!('insert' in op)) return false;
+        const a = op.attributes;
         return typeof op.insert === 'string' && op.insert === 'link' && a?.link === 'url';
       });
       expect(linkOp).toBeDefined();
@@ -473,10 +480,10 @@ describe('Simple Table', () => {
 
       // Check content
       const origContent = original.ops
-        .filter((op) => typeof op.insert === 'string' && op.insert !== '\n')
+        .filter((op): op is InsertOp => 'insert' in op && typeof op.insert === 'string' && op.insert !== '\n')
         .map((op) => (op.insert as string).trim());
       const restoredContent = restored.ops
-        .filter((op) => typeof op.insert === 'string' && op.insert !== '\n')
+        .filter((op): op is InsertOp => 'insert' in op && typeof op.insert === 'string' && op.insert !== '\n')
         .map((op) => (op.insert as string).trim());
 
       expect(restoredContent).toEqual(origContent);
@@ -578,10 +585,10 @@ describe('Simple Table', () => {
 
       // "Итог" must not have table-row attribute
       const itogoOp = restored.ops.find(
-        (op) => typeof op.insert === 'string' && (op.insert as string).includes('Итог'),
+        (op) => 'insert' in op && typeof op.insert === 'string' && (op.insert).includes('Итог'),
       );
       expect(itogoOp).toBeDefined();
-      const itogoAttrs = itogoOp?.attributes as AttributeMap | undefined;
+      const itogoAttrs = (itogoOp as InsertOp | undefined)?.attributes;
       expect(itogoAttrs?.['table-row']).toBeUndefined();
     });
 
