@@ -945,6 +945,21 @@ function astToDelta(
         addedKeys.push('background');
       }
 
+      const fontMatch = style.match(/(?:^|;)\s*font-family\s*:\s*([^;]+)/i);
+      if (fontMatch) {
+        currentInlineAttrs = {
+          ...currentInlineAttrs,
+          font: fontMatch[1]!.trim().replace(/^["']|["']$/g, ''),
+        };
+        addedKeys.push('font');
+      }
+
+      const sizeMatch = style.match(/(?:^|;)\s*font-size\s*:\s*([^;]+)/i);
+      if (sizeMatch) {
+        currentInlineAttrs = { ...currentInlineAttrs, size: sizeMatch[1]!.trim() };
+        addedKeys.push('size');
+      }
+
       spanAttrStack.push(addedKeys);
       return;
     }

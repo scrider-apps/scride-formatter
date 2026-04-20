@@ -631,12 +631,15 @@ function renderInlineText(text: string, attributes?: AttributeMap): string {
     result = renderLink(result, link);
   }
 
-  // Apply color/background as <span style="..."> (outermost wrapping)
-  if (typeof attributes.color === 'string') {
-    result = `<span style="color: ${attributes.color}">${result}</span>`;
-  }
-  if (typeof attributes.background === 'string') {
-    result = `<span style="background-color: ${attributes.background}">${result}</span>`;
+  // Apply style-based formats as <span style="..."> (outermost wrapping)
+  const styleProps: string[] = [];
+  if (typeof attributes.color === 'string') styleProps.push(`color: ${attributes.color}`);
+  if (typeof attributes.background === 'string')
+    styleProps.push(`background-color: ${attributes.background}`);
+  if (typeof attributes.font === 'string') styleProps.push(`font-family: ${attributes.font}`);
+  if (typeof attributes.size === 'string') styleProps.push(`font-size: ${attributes.size}`);
+  if (styleProps.length > 0) {
+    result = `<span style="${styleProps.join('; ')}">${result}</span>`;
   }
 
   return result;

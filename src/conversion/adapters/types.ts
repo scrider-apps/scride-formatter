@@ -70,6 +70,8 @@ export interface DOMCSSStyleDeclaration {
   // Common CSS properties
   color?: string;
   backgroundColor?: string;
+  fontFamily?: string;
+  fontSize?: string;
   fontWeight?: string;
   fontStyle?: string;
   textDecoration?: string;

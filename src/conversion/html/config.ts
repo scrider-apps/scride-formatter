@@ -48,6 +48,8 @@ export const INLINE_FORMAT_ORDER: string[] = [
 export const INLINE_STYLE_FORMATS: Record<string, string> = {
   color: 'color',
   background: 'background-color',
+  font: 'font-family',
+  size: 'font-size',
 };
 
 /**

@@ -41,7 +41,7 @@ describe('Public API exports (@scrider/formatter)', () => {
   it('exports defaultFormats', () => {
     expect(defaultFormats).toBeDefined();
     expect(Array.isArray(defaultFormats)).toBe(true);
-    expect(defaultFormats.length).toBe(29); // 12 inline + 11 block + 6 embed
+    expect(defaultFormats.length).toBe(31); // 14 inline + 11 block + 6 embed
   });
 
   it('exports individual formats', () => {

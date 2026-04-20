@@ -1,6 +1,6 @@
 {
   "name": "@scrider/formatter",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Delta converters and block handlers for rich-text content",
   "author": "Pavel Sukharev",
   "license": "MIT",

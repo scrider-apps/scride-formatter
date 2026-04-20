@@ -578,6 +578,19 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       currentAttributes.background = bg;
     }
 
+    // Extract font-family
+    const fontFamily =
+      element.style?.fontFamily || element.style?.getPropertyValue?.('font-family');
+    if (fontFamily) {
+      currentAttributes.font = fontFamily.replace(/^["']|["']$/g, '');
+    }
+
+    // Extract font-size
+    const fontSize = element.style?.fontSize || element.style?.getPropertyValue?.('font-size');
+    if (fontSize) {
+      currentAttributes.size = fontSize;
+    }
+
     processChildren(element);
 
     // Flush before restoring attributes
