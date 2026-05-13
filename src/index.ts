@@ -113,7 +113,23 @@ export {
   markdownToDelta,
   markdownToDeltaSync,
   isRemarkAvailable,
+  preloadRemark,
+  // Simple-table region detection
+  extractTableRegion,
+  isTableNewlineOp,
   // Slugify utility
   slugify,
   slugifyWithDedup,
 } from './conversion';
+export type { TableRegion } from './conversion';
+
+/**
+ * Convenience alias for ops in a "content" Delta (a snapshot, not a change).
+ *
+ * `Op` is a discriminated union of `InsertOp | RetainOp | DeleteOp` — useful
+ * when describing changes that the OT layer can apply or invert. However,
+ * a Delta that represents document content (e.g. `state.delta` in an editor)
+ * only ever contains insert ops. Use `ContentOp` to express that intent in
+ * APIs and avoid repetitive narrowing via `isInsert()` / `'insert' in op`.
+ */
+export type { InsertOp as ContentOp } from '@scrider/delta';

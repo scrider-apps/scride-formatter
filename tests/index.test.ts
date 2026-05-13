@@ -7,8 +7,10 @@ import type {
   BlockRenderOptions,
   CellAlign,
   CellData,
+  ContentOp,
   Format,
   TableBlockData,
+  TableRegion,
 } from '../src/index';
 import {
   ALERT_TYPES,
@@ -18,6 +20,10 @@ import {
   createDefaultBlockHandlers,
   createDefaultRegistry,
   defaultFormats,
+  extractTableRegion,
+  isRemarkAvailable,
+  isTableNewlineOp,
+  preloadRemark,
   Registry,
   tableBlockHandler,
   toHexColor,
@@ -102,6 +108,41 @@ describe('Public API exports (@scrider/formatter)', () => {
     const t: AlertType = 'warning';
     expect(data).toBeDefined();
     expect(t).toBe('warning');
+  });
+
+  it('exports markdown helpers: preloadRemark, isRemarkAvailable', () => {
+    expect(preloadRemark).toBeDefined();
+    expect(typeof preloadRemark).toBe('function');
+    expect(isRemarkAvailable).toBeDefined();
+    expect(typeof isRemarkAvailable).toBe('function');
+  });
+
+  it('exports simple-table helpers: extractTableRegion, isTableNewlineOp', () => {
+    expect(extractTableRegion).toBeDefined();
+    expect(typeof extractTableRegion).toBe('function');
+    expect(isTableNewlineOp).toBeDefined();
+    expect(typeof isTableNewlineOp).toBe('function');
+  });
+
+  it('TableRegion type is usable', () => {
+    const region: TableRegion = {
+      startOpIdx: 0,
+      endOpIdx: 3,
+      ops: [
+        { insert: 'A' },
+        { insert: '\n', attributes: { 'table-row': 0, 'table-col': 0 } },
+        { insert: 'B' },
+        { insert: '\n', attributes: { 'table-row': 1, 'table-col': 0 } },
+      ],
+    };
+    expect(region).toBeDefined();
+    expect(region.ops).toHaveLength(4);
+  });
+
+  it('ContentOp type narrows Op to InsertOp', () => {
+    const op: ContentOp = { insert: 'hello', attributes: { bold: true } };
+    expect(op.insert).toBe('hello');
+    expect(op.attributes?.bold).toBe(true);
   });
 });
 

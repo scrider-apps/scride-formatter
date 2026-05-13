@@ -69,5 +69,9 @@ export {
   markdownToDelta,
   markdownToDeltaSync,
   isRemarkAvailable,
+  preloadRemark,
   type MarkdownToDeltaOptions,
+  extractTableRegion,
+  isTableNewlineOp,
+  type TableRegion,
 } from './markdown';

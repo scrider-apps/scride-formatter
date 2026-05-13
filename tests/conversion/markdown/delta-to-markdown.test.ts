@@ -342,4 +342,38 @@ describe('deltaToMarkdown', () => {
       expect(md).toBe('# Title\nThis is a **bold** paragraph.\n- Item 1\n- Item 2');
     });
   });
+
+  describe('trimTrailingNewlines option', () => {
+    it('strips the blank line that follows a serialised GFM table', () => {
+      const delta = new Delta()
+        .insert('H')
+        .insert('\n', { 'table-row': 0, 'table-col': 0, 'table-header': true })
+        .insert('B')
+        .insert('\n', { 'table-row': 1, 'table-col': 0 });
+
+      const mdDefault = deltaToMarkdown(delta);
+      const mdTrimmed = deltaToMarkdown(delta, { trimTrailingNewlines: true });
+
+      expect(mdDefault.endsWith('\n')).toBe(true);
+      expect(mdTrimmed.endsWith('\n')).toBe(false);
+      expect(mdTrimmed).toBe(mdDefault.replace(/\n+$/, ''));
+    });
+
+    it('does not affect internal newlines between blocks', () => {
+      const delta = new Delta()
+        .insert('Title\n', { header: 1 })
+        .insert('paragraph\n');
+      const md = deltaToMarkdown(delta, { trimTrailingNewlines: true });
+      // Internal \n between # Title and paragraph is preserved.
+      expect(md).toBe('# Title\nparagraph');
+    });
+
+    it('is a no-op when the output already has no trailing newlines', () => {
+      const delta = new Delta().insert('Hello World\n');
+      const md = deltaToMarkdown(delta);
+      const mdTrimmed = deltaToMarkdown(delta, { trimTrailingNewlines: true });
+      expect(md).toBe('Hello World');
+      expect(mdTrimmed).toBe(md);
+    });
+  });
 });

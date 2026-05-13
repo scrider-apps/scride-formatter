@@ -107,9 +107,20 @@ let remarkMath: any = null;
 let unified: any = null;
 
 /**
- * Check if remark is available
+ * Check if remark is available for synchronous use.
+ *
+ * Returns true if either:
+ *   - remark modules have been preloaded (via {@link preloadRemark} or a prior
+ *     `markdownToDelta` / `markdownToDeltaSync` call), OR
+ *   - CommonJS `require()` is available and can resolve `unified` and
+ *     `remark-parse` (Node.js without ESM-only mode).
+ *
+ * In browser ESM environments where `require` is undefined, this returns
+ * `false` until {@link preloadRemark} has been awaited at least once.
  */
 export function isRemarkAvailable(): boolean {
+  if (unified && remarkParse) return true;
+  if (typeof require === 'undefined') return false;
   try {
     require.resolve('unified');
     require.resolve('remark-parse');
@@ -120,10 +131,27 @@ export function isRemarkAvailable(): boolean {
 }
 
 /**
- * Load remark modules lazily
+ * Preload remark modules (`unified`, `remark-parse`, `remark-gfm`, optionally
+ * `remark-math`) asynchronously. After this resolves successfully, the
+ * synchronous {@link markdownToDeltaSync} is usable in environments where
+ * `require()` is not available (e.g. browser ESM).
+ *
+ * Safe to call multiple times: subsequent calls short-circuit if modules are
+ * already loaded.
+ *
+ * @returns `true` if mandatory modules (`unified`, `remark-parse`,
+ *   `remark-gfm`) are now loaded; `false` if any required module is missing.
+ *   The function never throws — callers can branch on the boolean for
+ *   graceful degradation.
+ *
+ * @example
+ * // On editor mount:
+ * useEffect(() => {
+ *   preloadRemark();
+ * }, []);
  */
-async function loadRemark(): Promise<void> {
-  if (unified) return;
+export async function preloadRemark(): Promise<boolean> {
+  if (unified && remarkParse && remarkGfm) return true;
 
   try {
     const [unifiedMod, remarkParseMod, remarkGfmMod] = await Promise.all([
@@ -131,23 +159,24 @@ async function loadRemark(): Promise<void> {
       import('remark-parse'),
       import('remark-gfm'),
     ]);
-
     unified = unifiedMod.unified;
     remarkParse = remarkParseMod.default;
     remarkGfm = remarkGfmMod.default;
   } catch {
-    throw new Error(
-      'remark is not installed. Install with: pnpm add unified remark-parse remark-gfm',
-    );
+    return false;
   }
 
   // remark-math is optional — enables $...$ and $$...$$ syntax
-  try {
-    const remarkMathMod = await import('remark-math');
-    remarkMath = remarkMathMod.default;
-  } catch {
-    // remark-math not installed — $...$ will be treated as plain text
+  if (!remarkMath) {
+    try {
+      const remarkMathMod = await import('remark-math');
+      remarkMath = remarkMathMod.default;
+    } catch {
+      // remark-math not installed — $...$ will be treated as plain text
+    }
   }
+
+  return true;
 }
 
 /**
@@ -207,10 +236,11 @@ export async function markdownToDelta(
 
   markdown = preprocessMarkdown(markdown, mathBlock);
 
-  await loadRemark();
-
-  if (!unified || !remarkParse) {
-    throw new Error('Failed to load remark');
+  const loaded = await preloadRemark();
+  if (!loaded || !unified || !remarkParse) {
+    throw new Error(
+      'remark is not installed. Install with: pnpm add unified remark-parse remark-gfm',
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
@@ -254,6 +284,14 @@ export function markdownToDeltaSync(markdown: string, options: MarkdownToDeltaOp
   markdown = preprocessMarkdown(markdown, mathBlock);
 
   if (!unified || !remarkParse) {
+    if (typeof require === 'undefined') {
+      throw new Error(
+        'markdownToDeltaSync requires remark to be preloaded in this environment. ' +
+          '`require()` is not available (likely browser ESM). ' +
+          'Call `await preloadRemark()` once on application startup before using the sync API, ' +
+          'or use the async `markdownToDelta()` instead.',
+      );
+    }
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
       const unifiedMod = require('unified');

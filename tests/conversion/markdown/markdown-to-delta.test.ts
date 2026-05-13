@@ -8,6 +8,7 @@ import {
   isRemarkAvailable,
   markdownToDelta,
   markdownToDeltaSync,
+  preloadRemark,
 } from '../../../src/conversion/markdown';
 import { Delta } from '@scrider/delta';
 import type { InsertOp } from '@scrider/delta';
@@ -782,5 +783,33 @@ This is a **bold** paragraph.
 describe.skipIf(runTests)('markdownToDelta (no remark)', () => {
   it('reports remark as unavailable', () => {
     expect(isRemarkAvailable()).toBe(false);
+  });
+});
+
+describe.runIf(runTests)('preloadRemark / isRemarkAvailable', () => {
+  it('preloadRemark resolves to true when modules are installed', async () => {
+    const ok = await preloadRemark();
+    expect(ok).toBe(true);
+  });
+
+  it('is idempotent — repeated calls short-circuit and still return true', async () => {
+    expect(await preloadRemark()).toBe(true);
+    expect(await preloadRemark()).toBe(true);
+    expect(await preloadRemark()).toBe(true);
+  });
+
+  it('isRemarkAvailable() returns true after preload (cached module state path)', async () => {
+    await preloadRemark();
+    expect(isRemarkAvailable()).toBe(true);
+  });
+
+  it('markdownToDeltaSync works after preloadRemark', async () => {
+    await preloadRemark();
+    const delta = markdownToDeltaSync('Hello **World**');
+    expect(delta.ops).toEqual([
+      { insert: 'Hello ' },
+      { insert: 'World', attributes: { bold: true } },
+      { insert: '\n' },
+    ]);
   });
 });

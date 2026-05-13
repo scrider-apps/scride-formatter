@@ -107,6 +107,19 @@ export interface DeltaToMarkdownOptions {
    * `render()` is used as HTML fallback in Markdown.
    */
   registry?: Registry;
+
+  /**
+   * Strip trailing newlines from the final output.
+   *
+   * Useful when serialising a single block (e.g. one table for inline
+   * editing) where the GFM padding (blank line after a table, trailing
+   * paragraph newline, etc.) is not wanted. The internal structure of the
+   * markdown is unaffected — only trailing `\n+` at the very end of the
+   * returned string is removed.
+   *
+   * @default false
+   */
+  trimTrailingNewlines?: boolean;
 }
 
 /**
@@ -144,6 +157,7 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     blockHandlers,
     prettyHtml = false,
     registry,
+    trimTrailingNewlines = false,
   } = options;
   const useLatexDelimiters = mathSyntax === 'latex';
 
@@ -275,7 +289,8 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     lastWasBlockquote = isBlockquote;
   }
 
-  return result.join('\n');
+  const md = result.join('\n');
+  return trimTrailingNewlines ? md.replace(/\n+$/, '') : md;
 }
 
 /**
