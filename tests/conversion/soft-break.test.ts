@@ -56,6 +56,27 @@ describe('Soft line break — HTML conversion', () => {
     ]);
   });
 
+  it('htmlToDelta: lone <br data-scrider-embed> in an otherwise empty <p> still becomes softBreak (Phase 7 Part 0)', () => {
+    // Regression for v1.3.0 → v1.3.1: the `isBrOnlyParagraph` short-
+    // circuit in `processDefaultBlock` used to skip `processChildren`
+    // entirely, so the explicit `data-scrider-embed` marker on the BR
+    // was ignored and the embed silently degraded to a plain block `\n`.
+    // The fix excludes BR-with-marker from the placeholder path so the
+    // generic `processNode('br')` branch can honour the attribute.
+    const delta = htmlToDelta('<p><br data-scrider-embed></p>');
+    expect(delta.ops).toEqual([{ insert: { softBreak: true } }, { insert: '\n' }]);
+  });
+
+  it('htmlToDelta: lone marker <br> at start of doc round-trips with deltaToHtml', () => {
+    // deltaToHtml renders `[{softBreak}, {insert:"\n"}, {insert:"X\n"}]`
+    // as `<p><br data-scrider-embed></p><p>X</p>`; the round-trip must
+    // come back to an equivalent ops sequence (adjacent plain-text
+    // inserts are merged by Delta normalization, so the trailing two
+    // `\n` collapse into a single `"\nX\n"`).
+    const delta = htmlToDelta('<p><br data-scrider-embed></p><p>X</p>');
+    expect(delta.ops).toEqual([{ insert: { softBreak: true } }, { insert: '\nX\n' }]);
+  });
+
   it('htmlToDelta: placeholder <br> in empty paragraph stays a newline', () => {
     const delta = htmlToDelta('<p><br></p>');
     // The `<br>` inside an otherwise empty <p> is a contenteditable

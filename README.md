@@ -95,7 +95,7 @@ A `Shift+Enter` style line break that does **not** split the containing block. S
 | HTML      | `<br data-scrider-embed>` (the marker disambiguates it from the `<br>` placeholder inside an empty paragraph) |
 | Markdown  | `"  \n"` by default — GFM hard break; switch to inline `<br>` via `deltaToMarkdown(delta, { softBreakStyle: 'html' })` |
 
-`htmlToDelta` also recognises bare `<br>` between content (e.g. `<p>foo<br>bar</p>`) as a soft break, while keeping the leading / placeholder shapes (`<p><br></p>`, `<p><br>foo</p>`) as regular newlines for backward compatibility.
+`htmlToDelta` also recognises bare `<br>` between content (e.g. `<p>foo<br>bar</p>`) as a soft break, while keeping the leading / placeholder shapes (`<p><br></p>`, `<p><br>foo</p>`) as regular newlines for backward compatibility. The explicit `data-scrider-embed` marker overrides the placeholder heuristic, so a lone `<br data-scrider-embed>` inside an otherwise empty `<p>` is still parsed as a `{ softBreak: true }` embed (since v1.3.1).
 
 ```typescript
 import { Delta, deltaToHtml, deltaToMarkdown } from '@scrider/formatter';
