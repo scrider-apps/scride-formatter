@@ -12,7 +12,7 @@ import { Delta } from '@scrider/delta';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
-import { markdownToDeltaSync } from '../../src/conversion/markdown/markdown-to-delta';
+import { markdownToDelta } from '../../src/conversion/markdown/markdown-to-delta';
 import { createDefaultRegistry } from '../../src/schema/defaults';
 import { softBreakFormat } from '../../src/schema/formats/embed/soft-break';
 
@@ -116,8 +116,8 @@ describe('Soft line break — Markdown conversion', () => {
     expect(deltaToMarkdown(delta, { softBreakStyle: 'html' })).toBe('foo<br>bar');
   });
 
-  it('markdownToDelta: GFM hard break ("  \\n") becomes softBreak embed', () => {
-    const delta = markdownToDeltaSync('foo  \nbar\n');
+  it('markdownToDelta: GFM hard break ("  \\n") becomes softBreak embed', async () => {
+    const delta = await markdownToDelta('foo  \nbar\n');
     expect(delta.ops).toEqual([
       { insert: 'foo' },
       { insert: { softBreak: true } },
@@ -125,8 +125,8 @@ describe('Soft line break — Markdown conversion', () => {
     ]);
   });
 
-  it('markdownToDelta: inline <br> becomes softBreak embed', () => {
-    const delta = markdownToDeltaSync('foo<br>bar\n');
+  it('markdownToDelta: inline <br> becomes softBreak embed', async () => {
+    const delta = await markdownToDelta('foo<br>bar\n');
     expect(delta.ops).toEqual([
       { insert: 'foo' },
       { insert: { softBreak: true } },
@@ -134,23 +134,23 @@ describe('Soft line break — Markdown conversion', () => {
     ]);
   });
 
-  it('Markdown round-trip (spaces): delta → md → delta is stable', () => {
+  it('Markdown round-trip (spaces): delta → md → delta is stable', async () => {
     const delta = new Delta()
       .insert('one')
       .insert({ softBreak: true })
       .insert('two\n');
     const md = deltaToMarkdown(delta);
-    const back = markdownToDeltaSync(md);
+    const back = await markdownToDelta(md);
     expect(back.ops).toEqual(delta.ops);
   });
 
-  it('Markdown round-trip (html style): delta → md → delta is stable', () => {
+  it('Markdown round-trip (html style): delta → md → delta is stable', async () => {
     const delta = new Delta()
       .insert('one')
       .insert({ softBreak: true })
       .insert('two\n');
     const md = deltaToMarkdown(delta, { softBreakStyle: 'html' });
-    const back = markdownToDeltaSync(md);
+    const back = await markdownToDelta(md);
     expect(back.ops).toEqual(delta.ops);
   });
 
