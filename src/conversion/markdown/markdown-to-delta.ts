@@ -633,7 +633,11 @@ function astToDelta(
         break;
 
       case 'break':
-        context.pushNewline();
+        // GFM hard break (`  \n` or `\\\n`) — soft line break inside the
+        // current block, NOT a paragraph split. Emitted as a `softBreak`
+        // embed so that round-trip with HTML `<br>` and editor-driven
+        // Shift+Enter is consistent.
+        context.pushEmbed({ softBreak: true });
         break;
 
       case 'html': {
@@ -1050,9 +1054,11 @@ function astToDelta(
       return;
     }
 
-    // Handle <br> and <br/> — inline line break (e.g. text1<br>text2)
-    if (/^<br\s*\/?>$/i.test(html)) {
-      context.pushNewline();
+    // Handle <br> / <br/> / <br data-scrider-embed> — inline line break
+    // (e.g. `text1<br>text2`). Always becomes a softBreak embed so that
+    // the construct survives round-trip through HTML, Delta and Markdown.
+    if (/^<br\b[^>]*\/?>$/i.test(html)) {
+      context.pushEmbed({ softBreak: true });
       return;
     }
 

@@ -157,6 +157,13 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
   },
 
   divider: () => '<hr>',
+
+  // Soft line break (Shift+Enter equivalent). Emitted with an explicit
+  // `data-scrider-embed` marker so that html-to-delta can distinguish this
+  // embed from the placeholder `<br>` that appears inside an empty
+  // paragraph (`<p><br></p>`) without relying solely on positional
+  // heuristics. See `soft-break.ts` for the format definition.
+  softBreak: () => '<br data-scrider-embed>',
 };
 
 /**

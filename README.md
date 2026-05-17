@@ -8,7 +8,7 @@ Schema, conversion and block handlers for rich-text content. HTML, Markdown, san
 
 ## Key Features
 
-- **Schema** — extensible format registry (31 built-in formats: inline, block, embed)
+- **Schema** — extensible format registry (32 built-in formats: inline, block, embed — including `softBreak` for Shift+Enter line breaks)
 - **HTML conversion** — `deltaToHtml()` / `htmlToDelta()` with DOM adapters (browser + Node.js)
 - **Markdown conversion** — `deltaToMarkdown()` / `markdownToDelta()` (GFM, math, footnotes)
 - **Block handlers** — tables, footnotes, alerts, columns, inline-box
@@ -65,7 +65,7 @@ const delta = htmlToDelta(html, { registry });
 ```typescript
 import { Registry, createDefaultRegistry, BlockHandlerRegistry } from '@scrider/formatter';
 
-const registry = createDefaultRegistry();  // 31 built-in formats
+const registry = createDefaultRegistry();  // 32 built-in formats
 ```
 
 ### HTML Conversion
@@ -84,6 +84,35 @@ import { deltaToMarkdown, markdownToDelta } from '@scrider/formatter';
 
 deltaToMarkdown(delta, options?)           // Delta → Markdown string
 await markdownToDelta(markdown, options?)  // Markdown string → Delta (async)
+```
+
+### Soft Line Break (`softBreak` embed)
+
+A `Shift+Enter` style line break that does **not** split the containing block. Stored in Delta as `{ insert: { softBreak: true } }` and round-tripped consistently across all three layers:
+
+| Direction | Encoding |
+|-----------|----------|
+| HTML      | `<br data-scrider-embed>` (the marker disambiguates it from the `<br>` placeholder inside an empty paragraph) |
+| Markdown  | `"  \n"` by default — GFM hard break; switch to inline `<br>` via `deltaToMarkdown(delta, { softBreakStyle: 'html' })` |
+
+`htmlToDelta` also recognises bare `<br>` between content (e.g. `<p>foo<br>bar</p>`) as a soft break, while keeping the leading / placeholder shapes (`<p><br></p>`, `<p><br>foo</p>`) as regular newlines for backward compatibility.
+
+```typescript
+import { Delta, deltaToHtml, deltaToMarkdown } from '@scrider/formatter';
+
+const doc = new Delta()
+  .insert('hello')
+  .insert({ softBreak: true })
+  .insert('world\n');
+
+deltaToHtml(doc);
+// → '<p>hello<br data-scrider-embed>world</p>'
+
+deltaToMarkdown(doc);
+// → 'hello  \nworld'
+
+deltaToMarkdown(doc, { softBreakStyle: 'html' });
+// → 'hello<br>world'
 ```
 
 ### Sanitization

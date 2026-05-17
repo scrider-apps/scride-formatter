@@ -285,7 +285,23 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
 
     // Check for br
     if (tagName === 'br') {
-      context.pushNewline();
+      // Soft line break disambiguation (Phase 7 Part 0):
+      //   1. `<br data-scrider-embed>` — explicit marker emitted by our own
+      //      `deltaToHtml` for a `{ softBreak: true }` embed. Always treated
+      //      as an embed, regardless of position.
+      //   2. `<br>` between content (sibling-aware heuristic) — typical for
+      //      browser-inserted Shift+Enter (`<p>foo<br>bar</p>`) or copy-paste
+      //      from rich-text sources. Treated as a softBreak embed.
+      //   3. `<br>` at the start of a block / placeholder — treated as a
+      //      regular newline to preserve historical behaviour for the
+      //      `<p><br>text</p>` shape. The `<p><br></p>` (br-only) shape is
+      //      already short-circuited earlier by `processDefaultBlock`.
+      const hasMarker = node.hasAttribute('data-scrider-embed');
+      if (hasMarker || hasMeaningfulPrevSibling(node)) {
+        context.pushEmbed({ softBreak: true });
+      } else {
+        context.pushNewline();
+      }
       return;
     }
 
@@ -968,6 +984,36 @@ function normalizeText(text: string, pendingText: string, atLineStart: boolean):
   }
 
   return text;
+}
+
+/**
+ * Sibling-aware heuristic for `<br>` disambiguation.
+ *
+ * Returns `true` when the given `<br>` node has at least one previous
+ * sibling that contributes content (non-whitespace text or any element).
+ * Such a `<br>` is treated as a soft line break embed; otherwise it is
+ * treated as a regular newline (preserving historical behaviour for
+ * placeholder shapes like `<p><br>text</p>`).
+ *
+ * The DOMAdapter interface does not expose `previousSibling`, so we walk
+ * the parent's `childNodes` list up to the current node.
+ */
+function hasMeaningfulPrevSibling(brNode: DOMElement): boolean {
+  const parent = brNode.parentNode;
+  if (!parent) return false;
+  const children = parent.childNodes;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!child) continue;
+    if (child === brNode) return false; // reached <br> with no prior content
+    if (child.nodeType === NODE_TYPE.TEXT_NODE) {
+      const text = child.textContent ?? '';
+      if (text.trim().length > 0) return true;
+    } else if (isElement(child)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

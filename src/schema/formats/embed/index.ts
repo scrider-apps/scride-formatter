@@ -5,4 +5,5 @@ export { drawioFormat } from './drawio';
 export { footnoteRefFormat } from './footnote-ref';
 export { formulaFormat } from './formula';
 export { imageFormat } from './image';
+export { softBreakFormat } from './soft-break';
 export { videoFormat } from './video';

@@ -35,11 +35,35 @@ describe('htmlToDelta', () => {
       expect(delta.ops).toEqual([{ insert: 'Hello\n' }]);
     });
 
-    it('converts br to newline', () => {
+    it('converts inline br to softBreak embed (Phase 7 Part 0)', () => {
       const delta = htmlToDelta('<p>Line 1<br>Line 2</p>');
 
-      // br creates newline within paragraph, paragraph adds final newline
-      expect(delta.ops).toEqual([{ insert: 'Line 1\nLine 2\n' }]);
+      // An inline <br> with meaningful content on both sides is a soft
+      // line break (Shift+Enter equivalent), not a paragraph split.
+      expect(delta.ops).toEqual([
+        { insert: 'Line 1' },
+        { insert: { softBreak: true } },
+        { insert: 'Line 2\n' },
+      ]);
+    });
+
+    it('converts leading br to a newline (placeholder shape)', () => {
+      const delta = htmlToDelta('<p><br>Line 2</p>');
+
+      // A <br> with no meaningful previous sibling acts as a leading
+      // empty-line placeholder, preserving historical behaviour.
+      expect(delta.ops).toEqual([{ insert: '\nLine 2\n' }]);
+    });
+
+    it('honours data-scrider-embed marker on br even at line start', () => {
+      const delta = htmlToDelta('<p><br data-scrider-embed>Line 2</p>');
+
+      // The explicit marker overrides positional heuristics — this is a
+      // softBreak embed even though there is no previous text sibling.
+      expect(delta.ops).toEqual([
+        { insert: { softBreak: true } },
+        { insert: 'Line 2\n' },
+      ]);
     });
 
     it('handles plain text without wrapper', () => {

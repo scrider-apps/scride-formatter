@@ -41,5 +41,6 @@ export {
   footnoteRefFormat,
   formulaFormat,
   imageFormat,
+  softBreakFormat,
   videoFormat,
 } from './embed';

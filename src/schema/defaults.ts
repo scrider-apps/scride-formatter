@@ -41,6 +41,7 @@ import {
   footnoteRefFormat,
   formulaFormat,
   imageFormat,
+  softBreakFormat,
   videoFormat,
 } from './formats/embed';
 
@@ -97,6 +98,7 @@ export const defaultEmbedFormats: Format[] = [
   videoFormat,
   formulaFormat,
   dividerFormat,
+  softBreakFormat,
   blockFormat,
   footnoteRefFormat,
 ];

@@ -69,6 +69,7 @@ export {
   footnoteRefFormat,
   formulaFormat,
   imageFormat,
+  softBreakFormat,
   videoFormat,
 } from './schema';
 export type { AlignType, ListType, TableColAlignType } from './schema';

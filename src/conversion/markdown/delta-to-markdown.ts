@@ -109,6 +109,23 @@ export interface DeltaToMarkdownOptions {
   registry?: Registry;
 
   /**
+   * Rendering style for `{ softBreak: true }` embeds (Phase 7 Part 0).
+   *
+   * - `'spaces'` (default): GFM-canonical hard break — two trailing spaces
+   *   followed by `\n` (`"  \n"`). Round-trips losslessly through remark.
+   * - `'html'`: inline `<br>` tag. Slightly more visible in source view
+   *   and immune to editor whitespace trimming. Recommended for the
+   *   LFM (LLM-Flavored Markdown) flavour exposed by the editor's
+   *   "source" toggle.
+   *
+   * Does not affect how soft breaks are rendered inside table cells —
+   * those always use inline `<br>` because GFM tables forbid raw `\n`.
+   *
+   * @default 'spaces'
+   */
+  softBreakStyle?: 'spaces' | 'html';
+
+  /**
    * Strip trailing newlines from the final output.
    *
    * Useful when serialising a single block (e.g. one table for inline
@@ -157,6 +174,7 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     blockHandlers,
     prettyHtml = false,
     registry,
+    softBreakStyle = 'spaces',
     trimTrailingNewlines = false,
   } = options;
   const useLatexDelimiters = mathSyntax === 'latex';
@@ -181,7 +199,9 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     // Check for table - needs special handling (group adjacent table lines)
     if (typeof attrs['table-row'] === 'number' && typeof attrs['table-col'] === 'number') {
       const tableLines = collectTableLines(lines, i);
-      result.push(renderMarkdownTable(tableLines, embedRenderers, useLatexDelimiters, registry));
+      result.push(
+        renderMarkdownTable(tableLines, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+      );
       result.push(''); // Blank line after table — GFM requires it to end the table block
       i += tableLines.length - 1;
       lastListType = null;
@@ -200,7 +220,16 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
       const language = getCodeBlockLanguage(attrs);
       const code = codeLines
         .map((l) =>
-          renderLineContent(l.ops, embedRenderers, true, false, blockHandlers, false, registry),
+          renderLineContent(
+            l.ops,
+            embedRenderers,
+            true,
+            false,
+            blockHandlers,
+            false,
+            registry,
+            softBreakStyle,
+          ),
         )
         .join('\n');
 
@@ -264,6 +293,7 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
       blockHandlers,
       prettyHtml,
       registry,
+      softBreakStyle,
     );
 
     // Handle empty lines
@@ -439,6 +469,7 @@ function renderMarkdownTable(
   embedRenderers: Record<string, (value: unknown, attrs?: AttributeMap) => string>,
   useLatexDelimiters: boolean = false,
   registry?: Registry,
+  softBreakStyle: 'spaces' | 'html' = 'spaces',
 ): string {
   // Group by row
   const rows = new Map<number, { isHeader: boolean; cells: Map<number, MdTableCell> }>();
@@ -491,7 +522,9 @@ function renderMarkdownTable(
   // If there's a header, render it + separator
   if (headerRows.length > 0) {
     for (const [, row] of headerRows) {
-      mdLines.push(renderMdRow(row.cells, maxCol, embedRenderers, useLatexDelimiters, registry));
+      mdLines.push(
+        renderMdRow(row.cells, maxCol, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+      );
     }
     mdLines.push(renderMdSeparator(maxCol, colAligns));
   } else {
@@ -500,13 +533,17 @@ function renderMarkdownTable(
     for (let col = 0; col <= maxCol; col++) {
       emptyRow.set(col, { ops: [] });
     }
-    mdLines.push(renderMdRow(emptyRow, maxCol, embedRenderers, useLatexDelimiters, registry));
+    mdLines.push(
+      renderMdRow(emptyRow, maxCol, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+    );
     mdLines.push(renderMdSeparator(maxCol, colAligns));
   }
 
   // Render body rows
   for (const [, row] of bodyRows) {
-    mdLines.push(renderMdRow(row.cells, maxCol, embedRenderers, useLatexDelimiters, registry));
+    mdLines.push(
+      renderMdRow(row.cells, maxCol, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+    );
   }
 
   return mdLines.join('\n');
@@ -521,6 +558,7 @@ function renderMdRow(
   embedRenderers: Record<string, (value: unknown, attrs?: AttributeMap) => string>,
   useLatexDelimiters: boolean = false,
   registry?: Registry,
+  softBreakStyle: 'spaces' | 'html' = 'spaces',
 ): string {
   const parts: string[] = [];
   for (let col = 0; col <= maxCol; col++) {
@@ -534,6 +572,8 @@ function renderMdRow(
           undefined,
           false,
           registry,
+          softBreakStyle,
+          true, // inTableCell — softBreak must use <br>, never "  \n"
         )
       : '';
     // Escape pipe characters in cell content
@@ -584,6 +624,8 @@ function renderLineContent(
   blockHandlers?: BlockHandlerRegistry,
   prettyHtml: boolean = false,
   registry?: Registry,
+  softBreakStyle: 'spaces' | 'html' = 'spaces',
+  inTableCell: boolean = false,
 ): string {
   let result = '';
 
@@ -608,6 +650,8 @@ function renderLineContent(
         blockHandlers,
         prettyHtml,
         registry,
+        softBreakStyle,
+        inTableCell,
       );
     }
   }
@@ -671,6 +715,8 @@ function renderEmbed(
   blockHandlers?: BlockHandlerRegistry,
   prettyHtml: boolean = false,
   registry?: Registry,
+  softBreakStyle: 'spaces' | 'html' = 'spaces',
+  inTableCell: boolean = false,
 ): string {
   const entries = Object.entries(embed);
   if (entries.length === 0) return '';
@@ -680,6 +726,16 @@ function renderEmbed(
 
   const embedType: string = firstEntry[0];
   const embedValue: unknown = firstEntry[1];
+
+  // Soft line break (Phase 7 Part 0) — handled here (before registry
+  // / custom-renderer lookup) so the caller-controlled `softBreakStyle`
+  // option always wins over any registered `Format.toMarkdown`.
+  // Inside table cells, GFM forbids raw `\n`, so the embed is always
+  // rendered as inline `<br>` regardless of the style preference.
+  if (embedType === 'softBreak') {
+    if (inTableCell) return '<br>';
+    return softBreakStyle === 'html' ? '<br>' : '  \n';
+  }
 
   // Handle block embeds via BlockHandler
   if (embedType === 'block' && blockHandlers) {
