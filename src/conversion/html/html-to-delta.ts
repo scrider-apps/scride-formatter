@@ -296,8 +296,24 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       //      regular newline to preserve historical behaviour for the
       //      `<p><br>text</p>` shape. The `<p><br></p>` (br-only) shape is
       //      already short-circuited earlier by `processDefaultBlock`.
+      //   4. Browser-added trailing line-box filler `<br>` (Phase 7 Part 0,
+      //      v1.3.3): a plain `<br>` whose immediately-preceding element is
+      //      ALSO a `<br>` and that has no semantic content after it inside
+      //      its parent block. contenteditable browsers append this marker
+      //      to give a trailing empty line a visual line-box; admitting it
+      //      as a softBreak embed corrupts the Delta (extra soft break that
+      //      survives subsequent edits and de-styles the parent block when
+      //      the user presses Enter/Backspace nearby).
       const hasMarker = node.hasAttribute('data-scrider-embed');
-      if (hasMarker || hasMeaningfulPrevSibling(node)) {
+      if (hasMarker) {
+        context.pushEmbed({ softBreak: true });
+        return;
+      }
+      if (isBrowserEmptyLineFiller(node)) {
+        // silently drop — it has no semantic meaning
+        return;
+      }
+      if (hasMeaningfulPrevSibling(node)) {
         context.pushEmbed({ softBreak: true });
       } else {
         context.pushNewline();
@@ -1025,6 +1041,71 @@ function hasMeaningfulPrevSibling(brNode: DOMElement): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Phase 7 Part 0 (v1.3.3) — detect a browser-added trailing line-box
+ * filler `<br>`.
+ *
+ * contenteditable engines (Chrome especially) append a plain `<br>` after
+ * a "real" `<br>` to give the trailing empty line a visual line-box. This
+ * filler carries no user intent — keeping it as a `softBreak` embed in the
+ * Delta corrupts subsequent edits (extra embed shifts caret positions and
+ * makes `splitBlock` / `deleteBackward` operate on the wrong newline).
+ *
+ * A `<br>` qualifies as a filler when ALL of:
+ *   - it has NO `data-scrider-embed` attribute (caller checks first);
+ *   - its immediately-preceding sibling element is also a `<br>` (with or
+ *     without the marker — either kind of "real" line break is OK);
+ *   - any sibling that comes AFTER it is whitespace-only text, a ZWSP
+ *     (`\u200B`, our own caret slot), or another filler `<br>` — i.e. no
+ *     semantic content follows it inside the parent block.
+ *
+ * The check ignores ZWSP/whitespace so the renderToDOM caret-slot ZWSP
+ * appended by ScriderEditor does not defeat the heuristic.
+ */
+function isBrowserEmptyLineFiller(brNode: DOMElement): boolean {
+  const parent = brNode.parentNode;
+  if (!parent) return false;
+  const children = parent.childNodes;
+
+  let prevElement: DOMElement | null = null;
+  let foundCurrent = false;
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!child) continue;
+    if (child === brNode) {
+      foundCurrent = true;
+      continue;
+    }
+    if (!foundCurrent) {
+      // BEFORE current: track the immediate preceding element. Skip pure
+      // whitespace text. Any non-whitespace text RESETS the element chain
+      // (the preceding <br> would no longer be "immediate" if real text
+      // sits between them).
+      if (child.nodeType === NODE_TYPE.TEXT_NODE) {
+        const text = (child.textContent ?? '').replace(/[\s\u200B]/g, '');
+        if (text.length > 0) prevElement = null;
+      } else if (isElement(child)) {
+        prevElement = child;
+      }
+    } else {
+      // AFTER current: any semantic content disqualifies the filler.
+      if (child.nodeType === NODE_TYPE.TEXT_NODE) {
+        const text = (child.textContent ?? '').replace(/[\s\u200B]/g, '');
+        if (text.length > 0) return false;
+      } else if (isElement(child)) {
+        const tag = child.tagName?.toLowerCase();
+        // Another <br> after us is also filler-shaped (browsers sometimes
+        // emit a chain), so don't disqualify on that alone.
+        if (tag !== 'br') return false;
+      }
+    }
+  }
+
+  if (!prevElement) return false;
+  return prevElement.tagName?.toLowerCase() === 'br';
 }
 
 /**

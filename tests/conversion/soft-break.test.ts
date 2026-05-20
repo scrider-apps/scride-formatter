@@ -100,6 +100,48 @@ describe('Soft line break — HTML conversion', () => {
     ]);
   });
 
+  describe('Browser-added trailing line-box filler <br> (v1.3.3)', () => {
+    it('htmlToDelta: plain trailing <br> after <br data-scrider-embed> is dropped', () => {
+      // Reproduces the exact DOM that Chrome leaves after the user types
+      // `Shift+Enter` + `1` + `Backspace` inside an `<h1>` — the typed
+      // character is gone, the soft-break marker stays, AND the browser
+      // appends a plain `<br>` to give the now-empty trailing line a
+      // visual line-box. That filler must NOT enter the Delta.
+      const delta = htmlToDelta('<h1>Hello<br data-scrider-embed=""><br></h1>');
+      expect(delta.ops).toEqual([
+        { insert: 'Hello' },
+        { insert: { softBreak: true } },
+        { insert: '\n', attributes: { header: 1 } },
+      ]);
+    });
+
+    it('htmlToDelta: plain <br> followed by REAL text after another <br> still becomes softBreak', () => {
+      // Counter-test: two genuine line breaks separated by text — the
+      // second <br> is NOT a filler because there's content after it.
+      const delta = htmlToDelta('<p>a<br>b<br>c</p>');
+      expect(delta.ops).toEqual([
+        { insert: 'a' },
+        { insert: { softBreak: true } },
+        { insert: 'b' },
+        { insert: { softBreak: true } },
+        { insert: 'c\n' },
+      ]);
+    });
+
+    it('htmlToDelta: trailing plain <br> WITHOUT a preceding <br> stays as softBreak', () => {
+      // Pre-1.3.3 behaviour for `<p>foo<br></p>` was to treat the lone
+      // trailing BR as a soft break (sibling-aware heuristic). The new
+      // filler check should NOT regress this — the filler rule only fires
+      // when the preceding element sibling is ALSO a <br>.
+      const delta = htmlToDelta('<p>foo<br></p>');
+      expect(delta.ops).toEqual([
+        { insert: 'foo' },
+        { insert: { softBreak: true } },
+        { insert: '\n' },
+      ]);
+    });
+  });
+
   it('deltaToHtml: softBreak embed renders as <br data-scrider-embed>', () => {
     const delta = new Delta()
       .insert('foo')
