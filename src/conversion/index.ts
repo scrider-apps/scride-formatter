@@ -40,6 +40,11 @@ export {
 export {
   deltaToHtml,
   type DeltaToHtmlOptions,
+  type TableCellAlign,
+  type TablePresentation,
+  resolveTablePresentation,
+  isZebraBodyRow,
+  type ResolvedTablePresentation,
   htmlToDelta,
   type HtmlToDeltaOptions,
   type TagHandler,

@@ -80,6 +80,9 @@ export { getNamedColors, isValidColor, isValidHexColor, toHexColor } from './sch
 // Conversion (DOM adapters)
 export type {
   DeltaToHtmlOptions,
+  TableCellAlign,
+  TablePresentation,
+  ResolvedTablePresentation,
   DOMAdapter,
   DOMDocument,
   DOMDocumentFragment,
@@ -96,6 +99,8 @@ export {
   browserAdapter,
   cloneDelta,
   deltaToHtml,
+  resolveTablePresentation,
+  isZebraBodyRow,
   escapeHtml,
   getAdapter,
   htmlToDelta,

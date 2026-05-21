@@ -19,6 +19,15 @@ import {
   escapeHtml,
 } from './config';
 import { slugifyWithDedup } from '../utils/slugify';
+import {
+  buildTableCellStyleAttr,
+  resolveTablePresentation,
+  tableOpenTag,
+  type TableCellAlign,
+  type TablePresentation,
+} from './table-presentation';
+
+export type { TableCellAlign, TablePresentation };
 
 /**
  * Options for Delta → HTML conversion
@@ -80,6 +89,12 @@ export interface DeltaToHtmlOptions {
    * This enables extensibility without modifying converter internals.
    */
   registry?: Registry;
+
+  /**
+   * Simple Table presentation (borders, shades, header style) as inline CSS for
+   * Office/HTML export and clipboard. Does not change Delta; omitted = legacy bare `<table>`.
+   */
+  tablePresentation?: TablePresentation;
 }
 
 /**
@@ -401,7 +416,11 @@ function renderTable(
 
   const indent = pretty ? '  ' : '';
   const nl = pretty ? '\n' : '';
-  let html = `<table>${nl}`;
+  const usePresentation = options?.tablePresentation !== undefined;
+  const presentation = usePresentation ? resolveTablePresentation(options.tablePresentation) : null;
+  const headerRowCount = headerRows.length;
+
+  let html = usePresentation && presentation ? `${tableOpenTag(presentation)}${nl}` : `<table>${nl}`;
 
   // Render <thead>
   if (headerRows.length > 0) {
@@ -416,6 +435,8 @@ function renderTable(
         2,
         blockHandlers,
         options,
+        presentation,
+        headerRowCount,
       );
     }
     html += `${indent}</thead>${nl}`;
@@ -424,6 +445,7 @@ function renderTable(
   // Render <tbody>
   if (bodyRows.length > 0) {
     html += `${indent}<tbody>${nl}`;
+    let bodyRowIndex = 0;
     for (const [, row] of bodyRows) {
       html += renderTableRow(
         row.cells,
@@ -434,7 +456,11 @@ function renderTable(
         2,
         blockHandlers,
         options,
+        presentation,
+        headerRowCount,
+        bodyRowIndex,
       );
+      bodyRowIndex += 1;
     }
     html += `${indent}</tbody>${nl}`;
   }
@@ -456,6 +482,9 @@ function renderTableRow(
   depth: number,
   blockHandlers?: BlockHandlerRegistry,
   options?: DeltaToHtmlOptions,
+  presentation?: ReturnType<typeof resolveTablePresentation> | null,
+  headerRowCount = 0,
+  bodyRowIndex?: number,
 ): string {
   const indent = pretty ? '  '.repeat(depth) : '';
   const cellIndent = pretty ? '  '.repeat(depth + 1) : '';
@@ -466,9 +495,20 @@ function renderTableRow(
   for (let col = 0; col <= maxCol; col++) {
     const cell = cells.get(col);
     const content = cell ? renderLineContent(cell.ops, embedRenderers, blockHandlers, options) : '';
-    const alignStyle =
-      cell?.colAlign && cell.colAlign !== 'left' ? ` style="text-align: ${cell.colAlign}"` : '';
-    html += `${cellIndent}<${cellTag}${alignStyle}>${content}</${cellTag}>${nl}`;
+    let styleAttr = '';
+    if (presentation) {
+      styleAttr = buildTableCellStyleAttr({
+        presentation,
+        cellTag,
+        colAlign: cell?.colAlign,
+        headerRowCount,
+        bodyRowIndex: cellTag === 'td' ? bodyRowIndex : undefined,
+      });
+    } else {
+      styleAttr =
+        cell?.colAlign && cell.colAlign !== 'left' ? ` style="text-align: ${cell.colAlign}"` : '';
+    }
+    html += `${cellIndent}<${cellTag}${styleAttr}>${content}</${cellTag}>${nl}`;
   }
 
   html += `${indent}</tr>${nl}`;

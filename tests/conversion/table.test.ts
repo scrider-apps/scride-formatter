@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Delta } from '@scrider/delta';
 import type { AttributeMap, InsertOp } from '@scrider/delta';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
+import { isZebraBodyRow, resolveTablePresentation } from '../../src/conversion/html/table-presentation';
 import { htmlToDelta } from '../../src/conversion/html/html-to-delta';
 import { deltaToMarkdown } from '../../src/conversion/markdown/delta-to-markdown';
 import { markdownToDelta } from '../../src/conversion/markdown/markdown-to-delta';
@@ -86,6 +87,119 @@ describe('Simple Table', () => {
       expect(html).toContain('</table>');
     });
 
+    it('without tablePresentation keeps legacy bare cells (no border)', () => {
+      const html = deltaToHtml(makeHeaderTable());
+      expect(html).toContain('<th>Name</th>');
+      expect(html).not.toContain('border:');
+      expect(html).not.toContain('border-bottom:');
+    });
+  });
+
+  describe('Delta → HTML tablePresentation', () => {
+    it('grid adds full borders and border-collapse on table', () => {
+      const html = deltaToHtml(makeHeaderTable(), {
+        tablePresentation: { grid: true, borderColor: '#cccccc' },
+      });
+      expect(html).toContain('border-collapse: collapse');
+      expect(html).toContain('border: 1px solid #cccccc');
+      expect(html).toContain('<th style="');
+      expect(html).toContain('<td style="');
+    });
+
+    it('line mode uses bottom border only (th thicker than td)', () => {
+      const html = deltaToHtml(makeHeaderTable(), {
+        tablePresentation: { line: true },
+      });
+      expect(html).not.toContain('border: 1px solid');
+      expect(html).toContain('border-bottom: 1px solid');
+      expect(html).toContain('border-bottom: 0.5px solid');
+    });
+
+    it('grid wins over line when both are true', () => {
+      const html = deltaToHtml(makeHeaderTable(), {
+        tablePresentation: { grid: true, line: true },
+      });
+      expect(html).toContain('border: 1px solid');
+      expect(html).not.toContain('border-bottom: 0.5px solid');
+    });
+
+    it('preserves table-col-align with grid', () => {
+      const delta = new Delta()
+        .insert('C')
+        .insert('\n', {
+          'table-row': 0,
+          'table-col': 0,
+          'table-header': true,
+          'table-col-align': 'center',
+        })
+        .insert('x')
+        .insert('\n', { 'table-row': 1, 'table-col': 0, 'table-col-align': 'center' });
+      const html = deltaToHtml(delta, { tablePresentation: { grid: true } });
+      expect(html).toContain('text-align: center');
+      expect(html).toContain('border: 1px solid');
+    });
+
+    it('headerBold and headerCenter on th', () => {
+      const html = deltaToHtml(makeHeaderTable(), {
+        tablePresentation: { headerBold: true, headerCenter: true },
+      });
+      expect(html).toMatch(/<th style="[^"]*font-weight: bold/);
+      expect(html).toMatch(/<th style="[^"]*text-align: center/);
+    });
+
+    it('headerShade sets background on th', () => {
+      const html = deltaToHtml(makeHeaderTable(), {
+        tablePresentation: { headerShade: true },
+      });
+      expect(html).toContain('background-color: #f5f5f5');
+      expect(html).toMatch(/<th style="[^"]*background-color/);
+    });
+
+    it('zebraRows shades even body rows only', () => {
+      const delta = new Delta()
+        .insert('H')
+        .insert('\n', { 'table-row': 0, 'table-col': 0, 'table-header': true })
+        .insert('Row1')
+        .insert('\n', { 'table-row': 1, 'table-col': 0 })
+        .insert('Row2')
+        .insert('\n', { 'table-row': 2, 'table-col': 0 });
+      const html = deltaToHtml(delta, { tablePresentation: { zebraRows: true } });
+      // With one header <tr>, first body row is 2nd <tr> → nth-child(even) → zebra
+      const row1Match = html.match(/<tr>\s*<td[^>]*>Row1<\/td>/);
+      const row2Match = html.match(/<tr>\s*<td[^>]*>Row2<\/td>/);
+      expect(row1Match?.[0]).toContain('background-color');
+      expect(row2Match?.[0]).not.toContain('background-color');
+    });
+
+    it('defaultCellAlign applies when col has no table-col-align', () => {
+      const delta = new Delta()
+        .insert('A')
+        .insert('\n', { 'table-row': 0, 'table-col': 0 })
+        .insert('B')
+        .insert('\n', { 'table-row': 0, 'table-col': 1 });
+      const html = deltaToHtml(delta, {
+        tablePresentation: { defaultCellAlign: 'center' },
+      });
+      expect(html).toContain('text-align: center');
+    });
+  });
+
+  describe('tablePresentation helpers', () => {
+    it('resolveTablePresentation: grid disables line', () => {
+      const r = resolveTablePresentation({ grid: true, line: true });
+      expect(r.grid).toBe(true);
+      expect(r.line).toBe(false);
+    });
+
+    it('isZebraBodyRow matches nth-child(even) with one header row', () => {
+      expect(isZebraBodyRow(1, 0)).toBe(true);
+      expect(isZebraBodyRow(1, 1)).toBe(false);
+      expect(isZebraBodyRow(0, 0)).toBe(false);
+      expect(isZebraBodyRow(0, 1)).toBe(true);
+    });
+  });
+
+  describe('Delta → HTML (continued)', () => {
     it('renders column alignment', () => {
       const delta = new Delta()
         .insert('Left')

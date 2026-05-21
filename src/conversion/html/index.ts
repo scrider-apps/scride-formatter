@@ -4,7 +4,12 @@
  * Delta ↔ HTML conversion utilities.
  */
 
-export { deltaToHtml, type DeltaToHtmlOptions } from './delta-to-html';
+export { deltaToHtml, type DeltaToHtmlOptions, type TableCellAlign, type TablePresentation } from './delta-to-html';
+export {
+  resolveTablePresentation,
+  isZebraBodyRow,
+  type ResolvedTablePresentation,
+} from './table-presentation';
 export {
   htmlToDelta,
   type HtmlToDeltaOptions,

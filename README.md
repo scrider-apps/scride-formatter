@@ -77,6 +77,23 @@ deltaToHtml(delta, { registry })           // Delta → HTML string
 htmlToDelta(html, { registry })            // HTML string → Delta
 ```
 
+**Simple Table presentation (v1.3.4+)** — inline borders/shades for clipboard and Office paste (Delta structure unchanged):
+
+```typescript
+import { deltaToHtml, type TablePresentation } from '@scrider/formatter';
+
+const tablePresentation: TablePresentation = {
+  grid: true,
+  borderColor: '#e7e7e7',
+  headerBold: true,
+  headerCenter: true,
+};
+
+deltaToHtml(delta, { tablePresentation });
+```
+
+See scrider-editor `docs/simple-tables.md` §8 for the full contract (`grid` / `line`, `headerShade`, `zebraRows`, `defaultCellAlign`, …).
+
 ### Markdown Conversion
 
 ```typescript
