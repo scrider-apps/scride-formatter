@@ -20,6 +20,12 @@ import {
 } from './config';
 import { slugifyWithDedup } from '../utils/slugify';
 import {
+  documentPresentationStyleParts,
+  joinStyleParts,
+  resolveDocumentPresentation,
+  type DocumentPresentation,
+} from './document-presentation';
+import {
   buildTableCellStyleAttr,
   resolveTablePresentation,
   tableOpenTag,
@@ -27,7 +33,7 @@ import {
   type TablePresentation,
 } from './table-presentation';
 
-export type { TableCellAlign, TablePresentation };
+export type { TableCellAlign, TablePresentation, DocumentPresentation };
 
 /**
  * Options for Delta → HTML conversion
@@ -95,6 +101,12 @@ export interface DeltaToHtmlOptions {
    * Office/HTML export and clipboard. Does not change Delta; omitted = legacy bare `<table>`.
    */
   tablePresentation?: TablePresentation;
+
+  /**
+   * Document-level paragraph styles (line spacing, first-line indent) as inline CSS for
+   * Office/HTML export and clipboard. Does not change Delta.
+   */
+  documentPresentation?: DocumentPresentation;
 }
 
 /**
@@ -130,6 +142,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
   const hierarchicalNumbers = options.hierarchicalNumbers ?? false;
   const blockHandlers = options.blockHandlers;
   const anchorLinks = options.anchorLinks ?? false;
+  const resolvedDocumentPresentation = resolveDocumentPresentation(options.documentPresentation);
 
   let html = '';
   let listStack: { type: string; indent: number }[] = [];
@@ -225,7 +238,14 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
         hierarchicalNumber = counters.slice(0, indent + 1).join('.');
       }
 
-      html += renderListItem(content, listItemAttrs, pretty, indentLevel, hierarchicalNumber);
+      html += renderListItem(
+        content,
+        listItemAttrs,
+        pretty,
+        indentLevel,
+        hierarchicalNumber,
+        resolvedDocumentPresentation,
+      );
     } else {
       // Generate anchor id for headings
       let headingId: string | undefined;
@@ -238,7 +258,14 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
           headingId = slugifyWithDedup(plainText, slugUsageMap);
         }
       }
-      html += renderBlock(content, tag, line.attributes, pretty, headingId);
+      html += renderBlock(
+        content,
+        tag,
+        line.attributes,
+        pretty,
+        headingId,
+        resolvedDocumentPresentation,
+      );
     }
   }
 
@@ -717,6 +744,7 @@ function renderListItem(
   pretty: boolean,
   indentLevel: number,
   hierarchicalNumber?: string,
+  resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
 ): string {
   const indent = pretty ? getIndent(indentLevel) : '';
   // Use <br> for empty list items so they have height in browser
@@ -727,6 +755,11 @@ function renderListItem(
   if (hierarchicalNumber) {
     fullAttrs += ` data-number="${hierarchicalNumber}"`;
   }
+
+  const styleAttr = joinStyleParts(
+    documentPresentationStyleParts('li', resolvedDocumentPresentation),
+  );
+  fullAttrs += styleAttr;
 
   const html = `${indent}<li${fullAttrs}>${innerContent}</li>`;
   return pretty ? html + '\n' : html;
@@ -741,9 +774,10 @@ function renderBlock(
   attributes: AttributeMap | undefined,
   pretty?: boolean,
   id?: string,
+  resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
 ): string {
   const idAttr = id ? ` id="${escapeHtml(id)}"` : '';
-  const styleAttr = getBlockStyleAttribute(attributes);
+  const styleAttr = getBlockStyleAttribute(tag, attributes, resolvedDocumentPresentation);
   // Use <br> for empty paragraphs so they have height in browser
   const innerContent = content || '<br>';
   const html = `<${tag}${idAttr}${styleAttr}>${innerContent}</${tag}>`;
@@ -751,26 +785,30 @@ function renderBlock(
 }
 
 /**
- * Get style attribute for block element (alignment, etc.)
+ * Get style attribute for block element (alignment, document presentation, etc.)
  */
-function getBlockStyleAttribute(attributes: AttributeMap | undefined): string {
-  if (!attributes) return '';
+function getBlockStyleAttribute(
+  tag: string,
+  attributes: AttributeMap | undefined,
+  resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
+): string {
+  const styles: string[] = documentPresentationStyleParts(tag, resolvedDocumentPresentation);
 
-  const styles: string[] = [];
+  if (attributes) {
+    const alignVal = attributes.align;
+    if (alignVal && typeof alignVal === 'string' && alignVal !== 'left') {
+      styles.push(`text-align: ${alignVal}`);
+    }
 
-  const alignVal = attributes.align;
-  if (alignVal && typeof alignVal === 'string' && alignVal !== 'left') {
-    styles.push(`text-align: ${alignVal}`);
-  }
-
-  if (attributes.indent && typeof attributes.indent === 'number') {
-    // Skip indent for lists (handled by nesting)
-    if (!attributes.list) {
-      styles.push(`margin-left: ${attributes.indent * 2}em`);
+    if (attributes.indent && typeof attributes.indent === 'number') {
+      // Skip indent for lists (handled by nesting)
+      if (!attributes.list) {
+        styles.push(`margin-left: ${attributes.indent * 2}em`);
+      }
     }
   }
 
-  return styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
+  return joinStyleParts(styles);
 }
 
 /**
