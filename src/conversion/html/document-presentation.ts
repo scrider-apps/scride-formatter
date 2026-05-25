@@ -37,6 +37,9 @@ export function resolveDocumentPresentation(
 /** Block tags that receive document line spacing (not headings). */
 const LINE_HEIGHT_TAGS = new Set(['p', 'li', 'blockquote']);
 
+/** Block tags that receive document first-line indent (not headings). */
+const TEXT_INDENT_TAGS = new Set(['p', 'li']);
+
 export function documentPresentationStyleParts(
   tag: string,
   resolved: ResolvedDocumentPresentation | undefined,
@@ -51,7 +54,7 @@ export function documentPresentationStyleParts(
     parts.push(`mso-line-height-alt:${pct}%`);
   }
 
-  if (resolved.textIndentCm !== undefined && tag === 'p') {
+  if (resolved.textIndentCm !== undefined && TEXT_INDENT_TAGS.has(tag)) {
     parts.push(`text-indent:${resolved.textIndentCm}cm`);
   }
 
