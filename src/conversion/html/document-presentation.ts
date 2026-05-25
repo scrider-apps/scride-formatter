@@ -37,8 +37,16 @@ export function resolveDocumentPresentation(
 /** Block tags that receive document line spacing (not headings). */
 const LINE_HEIGHT_TAGS = new Set(['p', 'li', 'blockquote']);
 
-/** Block tags that receive document first-line indent (not headings). */
-const TEXT_INDENT_TAGS = new Set(['p', 'li']);
+/** Block tags that receive document first-line indent on the text line (not lists). */
+const TEXT_INDENT_TAGS = new Set(['p']);
+
+/** Extra padding on top-level `<ul>`/`<ol>` — shifts marker + text (not `text-indent` on `<li>`). */
+export function documentPresentationListWrapperStyleParts(
+  resolved: ResolvedDocumentPresentation | undefined,
+): string[] {
+  if (!resolved?.textIndentCm) return [];
+  return [`padding-left:calc(1.5em + ${resolved.textIndentCm}cm)`];
+}
 
 export function documentPresentationStyleParts(
   tag: string,

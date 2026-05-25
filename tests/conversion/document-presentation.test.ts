@@ -23,7 +23,7 @@ describe('deltaToHtml documentPresentation', () => {
     expect(html).toMatch(/<p[^>]*line-height:1\.5/);
   });
 
-  it('adds text-indent on p and li', () => {
+  it('adds text-indent on p and padding-left on top-level list wrapper', () => {
     const delta = new Delta()
       .insert('Para')
       .insert('\n')
@@ -33,7 +33,8 @@ describe('deltaToHtml documentPresentation', () => {
       documentPresentation: { lineSpacing: 1.5, textIndentCm: 1.25 },
     });
     expect(html).toMatch(/<p[^>]*text-indent:1\.25cm/);
-    expect(html).toMatch(/<li[^>]*text-indent:1\.25cm/);
+    expect(html).toMatch(/<ul[^>]*padding-left:calc\(1\.5em \+ 1\.25cm\)/);
+    expect(html).not.toMatch(/<li[^>]*text-indent/);
   });
 
   it('omits styles when documentPresentation not set', () => {

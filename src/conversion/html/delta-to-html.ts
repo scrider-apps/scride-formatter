@@ -20,6 +20,7 @@ import {
 } from './config';
 import { slugifyWithDedup } from '../utils/slugify';
 import {
+  documentPresentationListWrapperStyleParts,
   documentPresentationStyleParts,
   joinStyleParts,
   resolveDocumentPresentation,
@@ -198,7 +199,13 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
 
     // Handle list nesting
     if (isList) {
-      html += handleListOpen(listStack, listType!, indent, pretty);
+      html += handleListOpen(
+        listStack,
+        listType!,
+        indent,
+        pretty,
+        resolvedDocumentPresentation,
+      );
 
       // Update hierarchical counters for ordered lists
       if (hierarchicalNumbers && listType === 'ordered') {
@@ -647,9 +654,18 @@ function handleListOpen(
   listType: string,
   indent: number,
   pretty: boolean,
+  resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
 ): string {
   let html = '';
   const wrapperTag = LIST_WRAPPER_TAGS[listType] || 'ul';
+
+  const openWrapperTag = (): string => {
+    const styleAttr =
+      stack.length === 0
+        ? joinStyleParts(documentPresentationListWrapperStyleParts(resolvedDocumentPresentation))
+        : '';
+    return `<${wrapperTag}${styleAttr}>`;
+  };
 
   // Close lists that are at higher indent levels
   while (stack.length > 0) {
@@ -684,7 +700,7 @@ function handleListOpen(
     if (currentIndent > indent) break;
 
     if (pretty) html += getIndent(stack.length);
-    html += `<${wrapperTag}>`;
+    html += openWrapperTag();
     if (pretty) html += '\n';
     stack.push({ type: listType, indent: currentIndent });
 
@@ -695,7 +711,7 @@ function handleListOpen(
   const current = stack[stack.length - 1];
   if (!current || current.indent < indent) {
     if (pretty) html += getIndent(stack.length);
-    html += `<${wrapperTag}>`;
+    html += openWrapperTag();
     if (pretty) html += '\n';
     stack.push({ type: listType, indent });
   }
