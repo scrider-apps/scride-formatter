@@ -1,18 +1,21 @@
 /**
  * Document-level HTML presentation for deltaToHtml (clipboard, export).
- * Not stored in Delta — mirrors editor Settings (line spacing, first-line indent).
+ * Not stored in Delta — mirrors editor Settings (line spacing, indents).
  */
 
 export interface DocumentPresentation {
   /** Line spacing multiplier, e.g. 1.5 */
   lineSpacing?: number;
-  /** First-line indent in centimeters, e.g. 1.25 */
+  /** First-line indent in cm on `<p>` and `<li>` (wrapped / soft-break lines unchanged). */
   textIndentCm?: number;
+  /** Extra left padding on top-level `<ul>`/`<ol>` — shifts marker + text as a block. */
+  listBlockIndentCm?: number;
 }
 
 export interface ResolvedDocumentPresentation {
   lineSpacing: number | undefined;
   textIndentCm: number | undefined;
+  listBlockIndentCm: number | undefined;
 }
 
 export function resolveDocumentPresentation(
@@ -28,24 +31,34 @@ export function resolveDocumentPresentation(
     typeof presentation.textIndentCm === 'number' && presentation.textIndentCm > 0
       ? presentation.textIndentCm
       : undefined;
+  const listBlockIndentCm =
+    typeof presentation.listBlockIndentCm === 'number' && presentation.listBlockIndentCm > 0
+      ? presentation.listBlockIndentCm
+      : undefined;
 
-  if (lineSpacing === undefined && textIndentCm === undefined) return undefined;
+  if (
+    lineSpacing === undefined &&
+    textIndentCm === undefined &&
+    listBlockIndentCm === undefined
+  ) {
+    return undefined;
+  }
 
-  return { lineSpacing, textIndentCm };
+  return { lineSpacing, textIndentCm, listBlockIndentCm };
 }
 
 /** Block tags that receive document line spacing (not headings). */
 const LINE_HEIGHT_TAGS = new Set(['p', 'li', 'blockquote']);
 
-/** Block tags that receive document first-line indent on the text line (not lists). */
-const TEXT_INDENT_TAGS = new Set(['p']);
+/** Block tags that receive document first-line indent. */
+const TEXT_INDENT_TAGS = new Set(['p', 'li']);
 
-/** Extra padding on top-level `<ul>`/`<ol>` — shifts marker + text (not `text-indent` on `<li>`). */
+/** Extra padding on top-level `<ul>`/`<ol>` — shifts marker + text (list block indent). */
 export function documentPresentationListWrapperStyleParts(
   resolved: ResolvedDocumentPresentation | undefined,
 ): string[] {
-  if (!resolved?.textIndentCm) return [];
-  return [`padding-left:calc(1.5em + ${resolved.textIndentCm}cm)`];
+  if (!resolved?.listBlockIndentCm) return [];
+  return [`padding-left:calc(1.5em + ${resolved.listBlockIndentCm}cm)`];
 }
 
 export function documentPresentationStyleParts(
@@ -72,3 +85,4 @@ export function documentPresentationStyleParts(
 export function joinStyleParts(parts: string[]): string {
   return parts.length > 0 ? ` style="${parts.join('; ')}"` : '';
 }
+
