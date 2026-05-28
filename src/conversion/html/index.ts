@@ -19,8 +19,15 @@ export {
 export {
   resolveDocumentPresentation,
   documentPresentationStyleParts,
+  blockPresentationStyleParts,
   type ResolvedDocumentPresentation,
 } from './document-presentation';
+export {
+  SCRIDER_LINE_HEIGHT_KEY,
+  LINE_HEIGHT_BLOCK_TAGS,
+  parseScriderLineHeightMultiplier,
+  blockLineHeightStyleParts,
+} from './block-presentation';
 export {
   htmlToDelta,
   type HtmlToDeltaOptions,

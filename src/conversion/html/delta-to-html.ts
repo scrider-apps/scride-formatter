@@ -20,8 +20,8 @@ import {
 } from './config';
 import { slugifyWithDedup } from '../utils/slugify';
 import {
+  blockPresentationStyleParts,
   documentPresentationListWrapperStyleParts,
-  documentPresentationStyleParts,
   joinStyleParts,
   resolveDocumentPresentation,
   type DocumentPresentation,
@@ -248,6 +248,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       html += renderListItem(
         content,
         listItemAttrs,
+        line.attributes,
         pretty,
         indentLevel,
         hierarchicalNumber,
@@ -757,6 +758,7 @@ function getListItemAttributes(attributes: AttributeMap | undefined): string {
 function renderListItem(
   content: string,
   attrs: string,
+  blockAttributes: AttributeMap | undefined,
   pretty: boolean,
   indentLevel: number,
   hierarchicalNumber?: string,
@@ -772,10 +774,7 @@ function renderListItem(
     fullAttrs += ` data-number="${hierarchicalNumber}"`;
   }
 
-  const styleAttr = joinStyleParts(
-    documentPresentationStyleParts('li', resolvedDocumentPresentation),
-  );
-  fullAttrs += styleAttr;
+  fullAttrs += getBlockStyleAttribute('li', blockAttributes, resolvedDocumentPresentation);
 
   const html = `${indent}<li${fullAttrs}>${innerContent}</li>`;
   return pretty ? html + '\n' : html;
@@ -808,7 +807,11 @@ function getBlockStyleAttribute(
   attributes: AttributeMap | undefined,
   resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
 ): string {
-  const styles: string[] = documentPresentationStyleParts(tag, resolvedDocumentPresentation);
+  const styles: string[] = blockPresentationStyleParts(
+    tag,
+    attributes,
+    resolvedDocumentPresentation,
+  );
 
   if (attributes) {
     const alignVal = attributes.align;
