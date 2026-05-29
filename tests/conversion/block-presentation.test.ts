@@ -5,8 +5,10 @@ import { Delta } from '@scrider/delta';
 import {
   parseScriderLineHeightMultiplier,
   parseScriderMarginAfterEm,
+  parseScriderMarginBeforeEm,
   SCRIDER_LINE_HEIGHT_KEY,
   SCRIDER_MARGIN_AFTER_KEY,
+  SCRIDER_MARGIN_BEFORE_KEY,
 } from '../../src/conversion/html/block-presentation';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 
@@ -37,6 +39,20 @@ describe('parseScriderMarginAfterEm', () => {
     expect(parseScriderMarginAfterEm('')).toBeUndefined();
     expect(parseScriderMarginAfterEm('-1em')).toBeUndefined();
     expect(parseScriderMarginAfterEm('abc')).toBeUndefined();
+  });
+});
+
+describe('parseScriderMarginBeforeEm', () => {
+  it('parses em and unitless values', () => {
+    expect(parseScriderMarginBeforeEm('0.5em')).toBe(0.5);
+    expect(parseScriderMarginBeforeEm('0.5')).toBe(0.5);
+    expect(parseScriderMarginBeforeEm('0')).toBe(0);
+  });
+
+  it('returns undefined for invalid values', () => {
+    expect(parseScriderMarginBeforeEm('')).toBeUndefined();
+    expect(parseScriderMarginBeforeEm('-1em')).toBeUndefined();
+    expect(parseScriderMarginBeforeEm('abc')).toBeUndefined();
   });
 });
 
@@ -169,6 +185,83 @@ describe('deltaToHtml scrider-margin-after', () => {
 
     const html = deltaToHtml(delta);
     expect(html).toMatch(/line-height:1\.5/);
+    expect(html).toMatch(/margin-bottom:0\.5em/);
+  });
+});
+
+describe('deltaToHtml scrider-margin-before', () => {
+  it('adds margin-top from block attr on paragraph', () => {
+    const delta = new Delta()
+      .insert('Line one')
+      .insert('\n', { [SCRIDER_MARGIN_BEFORE_KEY]: '0.75em' })
+      .insert('Line two')
+      .insert('\n');
+
+    const html = deltaToHtml(delta);
+    expect(html).toMatch(/<p[^>]*margin-top:0\.75em/);
+    expect(html).not.toMatch(/margin-bottom:/);
+  });
+
+  it('block attr overrides documentPresentation paragraphSpacingBeforeEm', () => {
+    const delta = new Delta().insert('Body').insert('\n', { [SCRIDER_MARGIN_BEFORE_KEY]: '1em' });
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingBeforeEm: 0.25 } });
+    expect(html).toMatch(/margin-top:1em/);
+    expect(html).not.toMatch(/margin-top:0\.25em/);
+  });
+
+  it('falls back to documentPresentation when block attr absent', () => {
+    const delta = new Delta().insert('Body').insert('\n');
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingBeforeEm: 0.5 } });
+    expect(html).toMatch(/margin-top:0\.5em/);
+  });
+
+  it('does not add margin-before on list items or blockquote from documentPresentation', () => {
+    const delta = new Delta()
+      .insert('Item')
+      .insert('\n', { list: 'bullet' })
+      .insert('Quote')
+      .insert('\n', { blockquote: true });
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingBeforeEm: 0.5 } });
+    expect(html).not.toMatch(/<li[^>]*margin-top/);
+    expect(html).not.toMatch(/<blockquote[^>]*margin-top/);
+  });
+
+  it('does not add margin-before to headings from block attr or documentPresentation', () => {
+    const delta = new Delta()
+      .insert('Title')
+      .insert('\n', { header: 2, [SCRIDER_MARGIN_BEFORE_KEY]: '1em' })
+      .insert('Body')
+      .insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingBeforeEm: 0.5 } });
+    expect(html).not.toMatch(/<h2[^>]*margin-top/);
+    expect(html).toMatch(/<p[^>]*margin-top:0\.5em/);
+  });
+
+  it('combines margin-before and margin-after on paragraph', () => {
+    const delta = new Delta().insert('Body').insert('\n', {
+      [SCRIDER_MARGIN_BEFORE_KEY]: '0.3em',
+      [SCRIDER_MARGIN_AFTER_KEY]: '0.5em',
+    });
+
+    const html = deltaToHtml(delta);
+    expect(html).toMatch(/margin-top:0\.3em/);
+    expect(html).toMatch(/margin-bottom:0\.5em/);
+    expect(html).not.toMatch(/margin-top:0;/);
+  });
+
+  it('combines line-height, margin-before and margin-after on paragraph', () => {
+    const delta = new Delta().insert('Body').insert('\n', {
+      [SCRIDER_LINE_HEIGHT_KEY]: '1.5',
+      [SCRIDER_MARGIN_BEFORE_KEY]: '0.25em',
+      [SCRIDER_MARGIN_AFTER_KEY]: '0.5em',
+    });
+
+    const html = deltaToHtml(delta);
+    expect(html).toMatch(/line-height:1\.5/);
+    expect(html).toMatch(/margin-top:0\.25em/);
     expect(html).toMatch(/margin-bottom:0\.5em/);
   });
 });

@@ -2,14 +2,15 @@
  * Document-level HTML presentation for deltaToHtml (clipboard, export).
  * Mirrors editor Settings when block attrs are absent.
  * Per-block line spacing: {@link blockLineHeightStyleParts} (`scrider-line-height` on `\n`).
- * Per-block paragraph spacing: {@link blockMarginAfterStyleParts} (`scrider-margin-after` on `\n`).
+ * Per-block paragraph spacing: {@link blockParagraphMarginStyleParts}
+ * (`scrider-margin-before` / `scrider-margin-after` on `\n`).
  */
 
 import type { AttributeMap } from '@scrider/delta';
 
 import {
   blockLineHeightStyleParts,
-  blockMarginAfterStyleParts,
+  blockParagraphMarginStyleParts,
   LINE_HEIGHT_BLOCK_TAGS,
 } from './block-presentation';
 
@@ -18,6 +19,8 @@ export interface DocumentPresentation {
   lineSpacing?: number;
   /** Space after plain paragraphs in em, e.g. 0.5 */
   paragraphSpacingAfterEm?: number;
+  /** Space before plain paragraphs in em, e.g. 0.5 */
+  paragraphSpacingBeforeEm?: number;
   /** First-line indent in cm on `<p>` only (lists: use listBlockIndentCm). */
   textIndentCm?: number;
   /** Extra left padding on top-level `<ul>`/`<ol>` — shifts marker + text as a block. */
@@ -27,6 +30,7 @@ export interface DocumentPresentation {
 export interface ResolvedDocumentPresentation {
   lineSpacing: number | undefined;
   paragraphSpacingAfterEm: number | undefined;
+  paragraphSpacingBeforeEm: number | undefined;
   textIndentCm: number | undefined;
   listBlockIndentCm: number | undefined;
 }
@@ -54,17 +58,30 @@ export function resolveDocumentPresentation(
     presentation.paragraphSpacingAfterEm >= 0
       ? presentation.paragraphSpacingAfterEm
       : undefined;
+  const paragraphSpacingBeforeEm =
+    typeof presentation.paragraphSpacingBeforeEm === 'number' &&
+    Number.isFinite(presentation.paragraphSpacingBeforeEm) &&
+    presentation.paragraphSpacingBeforeEm >= 0
+      ? presentation.paragraphSpacingBeforeEm
+      : undefined;
 
   if (
     lineSpacing === undefined &&
     paragraphSpacingAfterEm === undefined &&
+    paragraphSpacingBeforeEm === undefined &&
     textIndentCm === undefined &&
     listBlockIndentCm === undefined
   ) {
     return undefined;
   }
 
-  return { lineSpacing, paragraphSpacingAfterEm, textIndentCm, listBlockIndentCm };
+  return {
+    lineSpacing,
+    paragraphSpacingAfterEm,
+    paragraphSpacingBeforeEm,
+    textIndentCm,
+    listBlockIndentCm,
+  };
 }
 
 /** Block tags that receive document first-line indent. */
@@ -104,7 +121,7 @@ export function blockPresentationStyleParts(
 ): string[] {
   return [
     ...blockLineHeightStyleParts(tag, blockAttributes, resolved),
-    ...blockMarginAfterStyleParts(tag, blockAttributes, resolved),
+    ...blockParagraphMarginStyleParts(tag, blockAttributes, resolved),
     ...documentPresentationStyleParts(tag, resolved),
   ];
 }

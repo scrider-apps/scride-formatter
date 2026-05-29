@@ -25,12 +25,17 @@ export {
 export {
   SCRIDER_LINE_HEIGHT_KEY,
   SCRIDER_MARGIN_AFTER_KEY,
+  SCRIDER_MARGIN_BEFORE_KEY,
   LINE_HEIGHT_BLOCK_TAGS,
   PARAGRAPH_SPACING_BLOCK_TAGS,
   parseScriderLineHeightMultiplier,
+  parseScriderMarginEm,
   parseScriderMarginAfterEm,
+  parseScriderMarginBeforeEm,
   blockLineHeightStyleParts,
+  blockParagraphMarginStyleParts,
   blockMarginAfterStyleParts,
+  blockMarginBeforeStyleParts,
 } from './block-presentation';
 export {
   htmlToDelta,

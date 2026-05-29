@@ -152,6 +152,56 @@ describe('deltaToHtml documentPresentation', () => {
 
   });
 
+
+
+  it('adds margin-top before paragraphs from paragraphSpacingBeforeEm', () => {
+
+    const delta = new Delta().insert('Line one').insert('\n').insert('Line two').insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingBeforeEm: 0.5 } });
+
+    expect(html).toMatch(/<p[^>]*margin-top:0\.5em/);
+
+  });
+
+
+
+  it('does not add margin-before to headings from paragraphSpacingBeforeEm', () => {
+
+    const delta = new Delta()
+
+      .insert('Title')
+
+      .insert('\n', { header: 3 })
+
+      .insert('Body')
+
+      .insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingBeforeEm: 0.5 } });
+
+    expect(html).not.toMatch(/<h3[^>]*margin-top/);
+
+    expect(html).toMatch(/<p[^>]*margin-top:0\.5em/);
+
+  });
+
+  it('combines paragraphSpacingBeforeEm and paragraphSpacingAfterEm', () => {
+
+    const delta = new Delta().insert('Body').insert('\n');
+
+    const html = deltaToHtml(delta, {
+
+      documentPresentation: { paragraphSpacingBeforeEm: 0.25, paragraphSpacingAfterEm: 0.5 },
+
+    });
+
+    expect(html).toMatch(/margin-top:0\.25em/);
+
+    expect(html).toMatch(/margin-bottom:0\.5em/);
+
+  });
+
 });
 
 
