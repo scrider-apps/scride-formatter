@@ -2,15 +2,22 @@
  * Document-level HTML presentation for deltaToHtml (clipboard, export).
  * Mirrors editor Settings when block attrs are absent.
  * Per-block line spacing: {@link blockLineHeightStyleParts} (`scrider-line-height` on `\n`).
+ * Per-block paragraph spacing: {@link blockMarginAfterStyleParts} (`scrider-margin-after` on `\n`).
  */
 
 import type { AttributeMap } from '@scrider/delta';
 
-import { blockLineHeightStyleParts, LINE_HEIGHT_BLOCK_TAGS } from './block-presentation';
+import {
+  blockLineHeightStyleParts,
+  blockMarginAfterStyleParts,
+  LINE_HEIGHT_BLOCK_TAGS,
+} from './block-presentation';
 
 export interface DocumentPresentation {
   /** Line spacing multiplier, e.g. 1.5 */
   lineSpacing?: number;
+  /** Space after plain paragraphs in em, e.g. 0.5 */
+  paragraphSpacingAfterEm?: number;
   /** First-line indent in cm on `<p>` only (lists: use listBlockIndentCm). */
   textIndentCm?: number;
   /** Extra left padding on top-level `<ul>`/`<ol>` — shifts marker + text as a block. */
@@ -19,6 +26,7 @@ export interface DocumentPresentation {
 
 export interface ResolvedDocumentPresentation {
   lineSpacing: number | undefined;
+  paragraphSpacingAfterEm: number | undefined;
   textIndentCm: number | undefined;
   listBlockIndentCm: number | undefined;
 }
@@ -40,16 +48,23 @@ export function resolveDocumentPresentation(
     typeof presentation.listBlockIndentCm === 'number' && presentation.listBlockIndentCm > 0
       ? presentation.listBlockIndentCm
       : undefined;
+  const paragraphSpacingAfterEm =
+    typeof presentation.paragraphSpacingAfterEm === 'number' &&
+    Number.isFinite(presentation.paragraphSpacingAfterEm) &&
+    presentation.paragraphSpacingAfterEm >= 0
+      ? presentation.paragraphSpacingAfterEm
+      : undefined;
 
   if (
     lineSpacing === undefined &&
+    paragraphSpacingAfterEm === undefined &&
     textIndentCm === undefined &&
     listBlockIndentCm === undefined
   ) {
     return undefined;
   }
 
-  return { lineSpacing, textIndentCm, listBlockIndentCm };
+  return { lineSpacing, paragraphSpacingAfterEm, textIndentCm, listBlockIndentCm };
 }
 
 /** Block tags that receive document first-line indent. */
@@ -89,6 +104,7 @@ export function blockPresentationStyleParts(
 ): string[] {
   return [
     ...blockLineHeightStyleParts(tag, blockAttributes, resolved),
+    ...blockMarginAfterStyleParts(tag, blockAttributes, resolved),
     ...documentPresentationStyleParts(tag, resolved),
   ];
 }

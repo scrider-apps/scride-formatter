@@ -118,6 +118,40 @@ describe('deltaToHtml documentPresentation', () => {
 
   });
 
+
+
+  it('adds margin-bottom after paragraphs from paragraphSpacingAfterEm', () => {
+
+    const delta = new Delta().insert('Line one').insert('\n').insert('Line two').insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingAfterEm: 0.5 } });
+
+    expect(html).toMatch(/<p[^>]*margin-bottom:0\.5em/);
+
+  });
+
+
+
+  it('does not add margin-after to headings from paragraphSpacingAfterEm', () => {
+
+    const delta = new Delta()
+
+      .insert('Title')
+
+      .insert('\n', { header: 3 })
+
+      .insert('Body')
+
+      .insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingAfterEm: 0.5 } });
+
+    expect(html).not.toMatch(/<h3[^>]*margin-bottom/);
+
+    expect(html).toMatch(/<p[^>]*margin-bottom:0\.5em/);
+
+  });
+
 });
 
 

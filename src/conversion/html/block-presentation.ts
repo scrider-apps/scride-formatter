@@ -5,8 +5,14 @@ import type { ResolvedDocumentPresentation } from './document-presentation';
 /** Per-paragraph line spacing stored on `\n` (Word paste, Settings Apply, toolbar). */
 export const SCRIDER_LINE_HEIGHT_KEY = 'scrider-line-height';
 
+/** Space after plain paragraph (`margin-bottom`) on `\n` (Settings Apply). */
+export const SCRIDER_MARGIN_AFTER_KEY = 'scrider-margin-after';
+
 /** Block tags that receive line spacing (not headings). */
 export const LINE_HEIGHT_BLOCK_TAGS = new Set(['p', 'li', 'blockquote']);
+
+/** Block tags that receive paragraph spacing after (plain `<p>` only). */
+export const PARAGRAPH_SPACING_BLOCK_TAGS = new Set(['p']);
 
 /**
  * Parse a line-height multiplier from Delta / inline CSS values
@@ -50,6 +56,52 @@ export function blockLineHeightStyleParts(
 
   if (resolved?.lineSpacing !== undefined) {
     return lineHeightStyleParts(resolved.lineSpacing);
+  }
+
+  return [];
+}
+
+/**
+ * Parse `margin-bottom` in em from Delta / inline CSS (`0.5em`, `0.5`).
+ */
+export function parseScriderMarginAfterEm(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  const emMatch = trimmed.match(/^(-?\d+(?:\.\d+)?)\s*em$/i);
+  if (emMatch) {
+    const n = Number.parseFloat(emMatch[1]!);
+    if (Number.isFinite(n) && n >= 0) return n;
+    return undefined;
+  }
+
+  const n = Number.parseFloat(trimmed);
+  if (Number.isFinite(n) && n >= 0) return n;
+  return undefined;
+}
+
+function marginAfterStyleParts(em: number): string[] {
+  return [`margin-top:0`, `margin-bottom:${em}em`];
+}
+
+/**
+ * Paragraph spacing after: `scrider-margin-after` on the line → documentPresentation → none.
+ */
+export function blockMarginAfterStyleParts(
+  tag: string,
+  blockAttributes: AttributeMap | undefined,
+  resolved: ResolvedDocumentPresentation | undefined,
+): string[] {
+  if (!PARAGRAPH_SPACING_BLOCK_TAGS.has(tag)) return [];
+
+  const raw = blockAttributes?.[SCRIDER_MARGIN_AFTER_KEY];
+  if (typeof raw === 'string') {
+    const fromBlock = parseScriderMarginAfterEm(raw);
+    if (fromBlock !== undefined) return marginAfterStyleParts(fromBlock);
+  }
+
+  if (resolved?.paragraphSpacingAfterEm !== undefined) {
+    return marginAfterStyleParts(resolved.paragraphSpacingAfterEm);
   }
 
   return [];

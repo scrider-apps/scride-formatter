@@ -4,7 +4,9 @@ import { Delta } from '@scrider/delta';
 
 import {
   parseScriderLineHeightMultiplier,
+  parseScriderMarginAfterEm,
   SCRIDER_LINE_HEIGHT_KEY,
+  SCRIDER_MARGIN_AFTER_KEY,
 } from '../../src/conversion/html/block-presentation';
 import { deltaToHtml } from '../../src/conversion/html/delta-to-html';
 
@@ -21,6 +23,20 @@ describe('parseScriderLineHeightMultiplier', () => {
   it('returns undefined for invalid values', () => {
     expect(parseScriderLineHeightMultiplier('')).toBeUndefined();
     expect(parseScriderLineHeightMultiplier('abc')).toBeUndefined();
+  });
+});
+
+describe('parseScriderMarginAfterEm', () => {
+  it('parses em and unitless values', () => {
+    expect(parseScriderMarginAfterEm('0.5em')).toBe(0.5);
+    expect(parseScriderMarginAfterEm('0.5')).toBe(0.5);
+    expect(parseScriderMarginAfterEm('0')).toBe(0);
+  });
+
+  it('returns undefined for invalid values', () => {
+    expect(parseScriderMarginAfterEm('')).toBeUndefined();
+    expect(parseScriderMarginAfterEm('-1em')).toBeUndefined();
+    expect(parseScriderMarginAfterEm('abc')).toBeUndefined();
   });
 });
 
@@ -91,5 +107,68 @@ describe('deltaToHtml scrider-line-height', () => {
 
     const html = deltaToHtml(delta);
     expect(html).not.toMatch(/<h1[^>]*line-height/);
+  });
+});
+
+describe('deltaToHtml scrider-margin-after', () => {
+  it('adds margin-bottom from block attr on paragraph', () => {
+    const delta = new Delta()
+      .insert('Line one')
+      .insert('\n', { [SCRIDER_MARGIN_AFTER_KEY]: '0.75em' })
+      .insert('Line two')
+      .insert('\n');
+
+    const html = deltaToHtml(delta);
+    expect(html).toMatch(/<p[^>]*margin-bottom:0\.75em/);
+    expect(html).toMatch(/margin-top:0/);
+  });
+
+  it('block attr overrides documentPresentation paragraphSpacingAfterEm', () => {
+    const delta = new Delta().insert('Body').insert('\n', { [SCRIDER_MARGIN_AFTER_KEY]: '1em' });
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingAfterEm: 0.25 } });
+    expect(html).toMatch(/margin-bottom:1em/);
+    expect(html).not.toMatch(/margin-bottom:0\.25em/);
+  });
+
+  it('falls back to documentPresentation when block attr absent', () => {
+    const delta = new Delta().insert('Body').insert('\n');
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingAfterEm: 0.5 } });
+    expect(html).toMatch(/margin-bottom:0\.5em/);
+  });
+
+  it('does not add margin-after on list items or blockquote from documentPresentation', () => {
+    const delta = new Delta()
+      .insert('Item')
+      .insert('\n', { list: 'bullet' })
+      .insert('Quote')
+      .insert('\n', { blockquote: true });
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingAfterEm: 0.5 } });
+    expect(html).not.toMatch(/<li[^>]*margin-bottom/);
+    expect(html).not.toMatch(/<blockquote[^>]*margin-bottom/);
+  });
+
+  it('does not add margin-after to headings from block attr or documentPresentation', () => {
+    const delta = new Delta()
+      .insert('Title')
+      .insert('\n', { header: 2, [SCRIDER_MARGIN_AFTER_KEY]: '1em' })
+      .insert('Body')
+      .insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { paragraphSpacingAfterEm: 0.5 } });
+    expect(html).not.toMatch(/<h2[^>]*margin-bottom/);
+    expect(html).toMatch(/<p[^>]*margin-bottom:0\.5em/);
+  });
+
+  it('combines line-height and margin-after on paragraph', () => {
+    const delta = new Delta().insert('Body').insert('\n', {
+      [SCRIDER_LINE_HEIGHT_KEY]: '1.5',
+      [SCRIDER_MARGIN_AFTER_KEY]: '0.5em',
+    });
+
+    const html = deltaToHtml(delta);
+    expect(html).toMatch(/line-height:1\.5/);
+    expect(html).toMatch(/margin-bottom:0\.5em/);
   });
 });
