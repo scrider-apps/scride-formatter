@@ -182,7 +182,16 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       // Collect all adjacent code-block lines
       const codeLines = collectCodeBlockLines(lines, i);
       const language = getCodeBlockLanguage(line.attributes);
-      html += renderCodeBlock(codeLines, language, embedRenderers, pretty, blockHandlers, options);
+      const codeBlockId = getCodeBlockId(line.attributes);
+      html += renderCodeBlock(
+        codeLines,
+        language,
+        embedRenderers,
+        pretty,
+        blockHandlers,
+        options,
+        codeBlockId,
+      );
       i += codeLines.length - 1; // Skip processed lines
       continue;
     }
@@ -590,7 +599,13 @@ function getBlockInfo(attributes: AttributeMap | undefined): {
 }
 
 /**
- * Collect consecutive code block lines (same language)
+ * Collect consecutive code block lines that belong to the SAME block.
+ *
+ * Two adjacent code-block lines are considered the same block only when they
+ * share both the language AND the `code-block-id`. The id makes a block
+ * first-class so two distinct diagrams/snippets never fuse into one <pre>,
+ * even when placed back-to-back with no separator paragraph. Lines without an
+ * id (legacy documents) group by language alone — `undefined === undefined`.
  */
 function collectCodeBlockLines(lines: LineContent[], startIndex: number): LineContent[] {
   const codeLines: LineContent[] = [];
@@ -598,13 +613,15 @@ function collectCodeBlockLines(lines: LineContent[], startIndex: number): LineCo
   if (!startLine) return codeLines;
 
   const startLang = getCodeBlockLanguage(startLine.attributes);
+  const startId = getCodeBlockId(startLine.attributes);
 
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i];
     if (!line || !line.attributes?.['code-block']) break;
 
     const lang = getCodeBlockLanguage(line.attributes);
-    if (i > startIndex && lang !== startLang) break;
+    const id = getCodeBlockId(line.attributes);
+    if (i > startIndex && (lang !== startLang || id !== startId)) break;
 
     codeLines.push(line);
   }
@@ -625,6 +642,16 @@ function getCodeBlockLanguage(attributes: AttributeMap | undefined): string | un
 }
 
 /**
+ * Get the per-block identity from the `code-block-id` attribute. Used to keep
+ * two adjacent code blocks separate even when they share a language.
+ */
+function getCodeBlockId(attributes: AttributeMap | undefined): string | undefined {
+  if (!attributes) return undefined;
+  const id = attributes['code-block-id'];
+  return typeof id === 'string' ? id : undefined;
+}
+
+/**
  * Render a code block (grouped lines)
  */
 function renderCodeBlock(
@@ -634,6 +661,7 @@ function renderCodeBlock(
   pretty: boolean,
   blockHandlers?: BlockHandlerRegistry,
   options?: DeltaToHtmlOptions,
+  codeBlockId?: string,
 ): string {
   // Render each line's content (no HTML escaping of structure — just text)
   const lineContents = codeLines.map((line) =>
@@ -643,7 +671,12 @@ function renderCodeBlock(
 
   const langClass = language ? ` class="language-${escapeHtml(language)}"` : '';
   const langAttr = language ? ` data-language="${escapeHtml(language)}"` : '';
-  const html = `<pre${langAttr}><code${langClass}>${code}\n</code></pre>`;
+  // Emit the per-block id so a DOM/HTML round-trip (e.g. the editor's
+  // contenteditable reparse, or paste of rendered HTML) can keep two adjacent
+  // blocks distinct. The id is intentionally absent from markdown output —
+  // there it is regenerated per fence on import.
+  const idAttr = codeBlockId ? ` data-code-block-id="${escapeHtml(codeBlockId)}"` : '';
+  const html = `<pre${langAttr}${idAttr}><code${langClass}>${code}\n</code></pre>`;
   return pretty ? html + '\n' : html;
 }
 

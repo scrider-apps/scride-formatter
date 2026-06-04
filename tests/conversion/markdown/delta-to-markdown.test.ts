@@ -215,6 +215,14 @@ describe('deltaToMarkdown', () => {
       const md = deltaToMarkdown(delta);
       expect(md).toBe('```javascript\nfunction hello() {\n  return "world";\n}\n```');
     });
+
+    it('emits two fences for two same-language blocks with different ids', () => {
+      const delta = new Delta()
+        .insert('graph TD\n', { 'code-block': 'mermaid', 'code-block-id': 'a' })
+        .insert('graph LR\n', { 'code-block': 'mermaid', 'code-block-id': 'b' });
+      const md = deltaToMarkdown(delta);
+      expect(md).toBe('```mermaid\ngraph TD\n```\n```mermaid\ngraph LR\n```');
+    });
   });
 
   describe('embeds', () => {

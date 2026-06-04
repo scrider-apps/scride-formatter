@@ -10,6 +10,7 @@ import {
   markdownToDeltaSync,
   preloadRemark,
 } from '../../../src/conversion/markdown';
+import { deltaToHtml } from '../../../src/conversion/html';
 import { Delta } from '@scrider/delta';
 import type { InsertOp } from '@scrider/delta';
 
@@ -241,7 +242,7 @@ describe.runIf(runTests)('markdownToDelta', () => {
       const delta = await markdownToDelta('```\nconst x = 1;\n```');
       expect(delta.ops).toEqual([
         { insert: 'const x = 1;' },
-        { insert: '\n', attributes: { 'code-block': true } },
+        { insert: '\n', attributes: { 'code-block': true, 'code-block-id': 'cb-1' } },
       ]);
     });
 
@@ -249,7 +250,7 @@ describe.runIf(runTests)('markdownToDelta', () => {
       const delta = await markdownToDelta('```javascript\nfunction hello() {}\n```');
       expect(delta.ops).toEqual([
         { insert: 'function hello() {}' },
-        { insert: '\n', attributes: { 'code-block': 'javascript' } },
+        { insert: '\n', attributes: { 'code-block': 'javascript', 'code-block-id': 'cb-1' } },
       ]);
     });
 
@@ -257,10 +258,21 @@ describe.runIf(runTests)('markdownToDelta', () => {
       const delta = await markdownToDelta('```typescript\nconst a = 1;\nconst b = 2;\n```');
       expect(delta.ops).toEqual([
         { insert: 'const a = 1;' },
-        { insert: '\n', attributes: { 'code-block': 'typescript' } },
+        { insert: '\n', attributes: { 'code-block': 'typescript', 'code-block-id': 'cb-1' } },
         { insert: 'const b = 2;' },
-        { insert: '\n', attributes: { 'code-block': 'typescript' } },
+        { insert: '\n', attributes: { 'code-block': 'typescript', 'code-block-id': 'cb-1' } },
       ]);
+    });
+
+    it('assigns distinct ids to two adjacent same-language fences', async () => {
+      const delta = await markdownToDelta('```mermaid\ngraph TD\n```\n```mermaid\ngraph LR\n```');
+      const ids = delta.ops
+        .map((op) => (op as { attributes?: Record<string, unknown> }).attributes)
+        .filter((attrs): attrs is Record<string, unknown> => attrs?.['code-block'] === 'mermaid')
+        .map((attrs) => attrs['code-block-id']);
+      expect(ids).toEqual(['cb-1', 'cb-2']);
+      // The distinct ids mean two separate <pre> blocks survive rendering.
+      expect((deltaToHtml(delta).match(/<pre/g) ?? []).length).toBe(2);
     });
   });
 

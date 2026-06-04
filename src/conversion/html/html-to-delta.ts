@@ -105,6 +105,8 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
   let currentBlockAttributes: AttributeMap = {};
   let pendingText = '';
   let atLineStart = true; // Track if we're at the start of a line
+  // Per-block code-block id counter (each <pre> = one distinct block).
+  let codeBlockIdSeq = 0;
 
   // Context for tag handlers
   const context: ParserContext = {
@@ -410,9 +412,14 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       }
     }
 
-    // Set code-block attribute with language or true
+    // Set code-block attribute with language or true, plus a per-block id so
+    // two pasted <pre> blocks stay two distinct blocks. Reuse an explicit
+    // data-code-block-id (round-trip from our own deltaToHtml) when present,
+    // otherwise mint a fresh one.
     const codeBlockValue: unknown = language || true;
     currentBlockAttributes['code-block'] = codeBlockValue;
+    const existingId = element.getAttribute('data-code-block-id');
+    currentBlockAttributes['code-block-id'] = existingId || `cb-${++codeBlockIdSeq}`;
 
     // Get text content from the code element or pre directly
     const sourceElement = codeElement || element;

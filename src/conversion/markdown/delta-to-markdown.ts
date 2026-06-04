@@ -412,7 +412,11 @@ function splitIntoLines(ops: Op[]): Line[] {
 }
 
 /**
- * Collect consecutive code block lines
+ * Collect consecutive code block lines that belong to the SAME block.
+ *
+ * A block is delimited by both its language AND its `code-block-id`, so two
+ * adjacent blocks are emitted as two separate fences (which survive a markdown
+ * round-trip). Lines without an id group by language alone (legacy documents).
  */
 function collectCodeBlock(lines: Line[], startIndex: number): Line[] {
   const codeLines: Line[] = [];
@@ -420,13 +424,15 @@ function collectCodeBlock(lines: Line[], startIndex: number): Line[] {
   if (!startLine) return codeLines;
 
   const startLang = getCodeBlockLanguage(startLine.attributes);
+  const startId = getCodeBlockId(startLine.attributes);
 
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i];
     if (!line || !line.attributes['code-block']) break;
 
     const lang = getCodeBlockLanguage(line.attributes);
-    if (i > startIndex && lang !== startLang) break;
+    const id = getCodeBlockId(line.attributes);
+    if (i > startIndex && (lang !== startLang || id !== startId)) break;
 
     codeLines.push(line);
   }
@@ -611,6 +617,15 @@ function getCodeBlockLanguage(attributes: AttributeMap): string | undefined {
     return codeBlock;
   }
   return undefined;
+}
+
+/**
+ * Get the per-block identity (`code-block-id`) used to keep two adjacent code
+ * blocks of the same language as separate fences.
+ */
+function getCodeBlockId(attributes: AttributeMap): string | undefined {
+  const id = attributes['code-block-id'];
+  return typeof id === 'string' ? id : undefined;
 }
 
 /**

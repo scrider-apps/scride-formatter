@@ -314,7 +314,7 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'const x = 1;' },
-        { insert: '\n', attributes: { 'code-block': true } },
+        { insert: '\n', attributes: { 'code-block': true, 'code-block-id': 'cb-1' } },
       ]);
     });
 
@@ -323,7 +323,7 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'const x = 1;' },
-        { insert: '\n', attributes: { 'code-block': true } },
+        { insert: '\n', attributes: { 'code-block': true, 'code-block-id': 'cb-1' } },
       ]);
     });
 
@@ -334,7 +334,7 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'const x = 1;' },
-        { insert: '\n', attributes: { 'code-block': 'javascript' } },
+        { insert: '\n', attributes: { 'code-block': 'javascript', 'code-block-id': 'cb-1' } },
       ]);
     });
 
@@ -345,9 +345,9 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'const a = 1;' },
-        { insert: '\n', attributes: { 'code-block': 'javascript' } },
+        { insert: '\n', attributes: { 'code-block': 'javascript', 'code-block-id': 'cb-1' } },
         { insert: 'const b = 2;' },
-        { insert: '\n', attributes: { 'code-block': 'javascript' } },
+        { insert: '\n', attributes: { 'code-block': 'javascript', 'code-block-id': 'cb-1' } },
       ]);
     });
 
@@ -356,7 +356,18 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'x = 1' },
-        { insert: '\n', attributes: { 'code-block': 'python' } },
+        { insert: '\n', attributes: { 'code-block': 'python', 'code-block-id': 'cb-1' } },
+      ]);
+    });
+
+    it('reuses an explicit data-code-block-id when present', () => {
+      const delta = htmlToDelta(
+        '<pre data-language="javascript" data-code-block-id="abc"><code class="language-javascript">const x = 1;\n</code></pre>',
+      );
+
+      expect(delta.ops).toEqual([
+        { insert: 'const x = 1;' },
+        { insert: '\n', attributes: { 'code-block': 'javascript', 'code-block-id': 'abc' } },
       ]);
     });
 
@@ -367,9 +378,9 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'graph TD' },
-        { insert: '\n', attributes: { 'code-block': 'mermaid' } },
+        { insert: '\n', attributes: { 'code-block': 'mermaid', 'code-block-id': 'cb-1' } },
         { insert: '    A-->B' },
-        { insert: '\n', attributes: { 'code-block': 'mermaid' } },
+        { insert: '\n', attributes: { 'code-block': 'mermaid', 'code-block-id': 'cb-1' } },
       ]);
     });
   });

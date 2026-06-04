@@ -371,6 +371,11 @@ function astToDelta(
   // Footnote definitions collected during AST traversal (for finalization)
   const footnoteDefinitions = new Map<string, MdastNode>();
 
+  // Monotonic counter for per-block code-block ids. Each fenced code node gets
+  // a fresh id so two adjacent fences stay two distinct blocks after import
+  // (and never re-fuse on the next render). Conversion-local → deterministic.
+  let codeBlockIdSeq = 0;
+
   const context: ParserContext = {
     delta,
     pushText(text: string, attrs?: AttributeMap) {
@@ -779,6 +784,7 @@ function astToDelta(
     const lines = code.split('\n');
     const codeBlockAttr: AttributeMap = {
       'code-block': lang ?? true,
+      'code-block-id': `cb-${++codeBlockIdSeq}`,
     };
 
     for (const line of lines) {
@@ -802,7 +808,10 @@ function astToDelta(
     } else {
       // Default: render as code-block "math"
       const lines = value.split('\n');
-      const mathBlockAttr: AttributeMap = { 'code-block': 'math' };
+      const mathBlockAttr: AttributeMap = {
+        'code-block': 'math',
+        'code-block-id': `cb-${++codeBlockIdSeq}`,
+      };
 
       for (const line of lines) {
         context.pushText(line);

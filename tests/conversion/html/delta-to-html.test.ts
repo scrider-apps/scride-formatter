@@ -241,6 +241,37 @@ describe('deltaToHtml', () => {
       );
     });
 
+    it('separates two SAME-language blocks with different code-block-id', () => {
+      const delta = new Delta()
+        .insert('graph TD\n', { 'code-block': 'mermaid', 'code-block-id': 'a' })
+        .insert('graph LR\n', { 'code-block': 'mermaid', 'code-block-id': 'b' });
+
+      expect(deltaToHtml(delta)).toBe(
+        '<pre data-language="mermaid" data-code-block-id="a"><code class="language-mermaid">graph TD\n</code></pre>' +
+          '<pre data-language="mermaid" data-code-block-id="b"><code class="language-mermaid">graph LR\n</code></pre>',
+      );
+    });
+
+    it('groups same-language lines that share a code-block-id', () => {
+      const delta = new Delta()
+        .insert('a\n', { 'code-block': 'mermaid', 'code-block-id': 'x' })
+        .insert('b\n', { 'code-block': 'mermaid', 'code-block-id': 'x' });
+
+      expect(deltaToHtml(delta)).toBe(
+        '<pre data-language="mermaid" data-code-block-id="x"><code class="language-mermaid">a\nb\n</code></pre>',
+      );
+    });
+
+    it('legacy lines without id still group by language (back-compat)', () => {
+      const delta = new Delta()
+        .insert('a\n', { 'code-block': 'mermaid' })
+        .insert('b\n', { 'code-block': 'mermaid' });
+
+      expect(deltaToHtml(delta)).toBe(
+        '<pre data-language="mermaid"><code class="language-mermaid">a\nb\n</code></pre>',
+      );
+    });
+
     it('converts multi-line code block without language', () => {
       const delta = new Delta()
         .insert('line 1\n', { 'code-block': true })
