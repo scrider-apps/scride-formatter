@@ -715,6 +715,12 @@ function astToDelta(
       return;
     }
 
+    // ![Widget](url) → code widget embed (case-insensitive). Phase 8 Part 3.5.
+    if (alt.toLowerCase() === 'widget') {
+      context.pushEmbed({ codeWidget: url });
+      return;
+    }
+
     const attrs: AttributeMap = {};
     if (node.alt) attrs.alt = node.alt;
 

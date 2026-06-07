@@ -35,6 +35,7 @@ export type { AlignType, ListType, TableColAlignType } from './block';
 // Embed formats
 export {
   blockFormat,
+  codeWidgetFormat,
   diagramFormat,
   dividerFormat,
   drawioFormat,

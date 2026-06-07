@@ -37,6 +37,7 @@ import {
 // Embed formats
 import {
   blockFormat,
+  codeWidgetFormat,
   dividerFormat,
   footnoteRefFormat,
   formulaFormat,
@@ -96,6 +97,7 @@ export const defaultBlockFormats: Format[] = [
 export const defaultEmbedFormats: Format[] = [
   imageFormat,
   videoFormat,
+  codeWidgetFormat,
   formulaFormat,
   dividerFormat,
   softBreakFormat,

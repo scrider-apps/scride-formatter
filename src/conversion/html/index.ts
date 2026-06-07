@@ -55,5 +55,6 @@ export {
   CSS_ALIGN_TO_FORMAT,
   escapeHtml,
   unescapeHtml,
+  toCodeWidgetEmbedUrl,
   type EmbedRenderer,
 } from './config';

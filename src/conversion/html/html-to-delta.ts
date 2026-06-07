@@ -680,6 +680,16 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     if (heightMatch?.[1]) attrs.height = heightMatch[1].trim().replace(/px$/, '');
 
     const embedAttrs = Object.keys(attrs).length > 0 ? attrs : undefined;
+
+    // Code Widget embeds (Phase 8 Part 3.5) reuse <iframe> with a
+    // `data-code-widget` marker. Without a registry the codeWidgetFormat is
+    // not consulted, so route marked iframes here to avoid mis-tagging them
+    // as video. Src is kept verbatim (embed URLs are idempotent).
+    if (element.getAttribute('data-code-widget') !== null) {
+      context.pushEmbed({ codeWidget: src }, embedAttrs);
+      return;
+    }
+
     context.pushEmbed({ video: fromVideoEmbedUrl(src) }, embedAttrs);
   }
 

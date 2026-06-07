@@ -131,6 +131,30 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
   },
 
+  codeWidget: (value, attrs) => {
+    const src = typeof value === 'string' ? value : '';
+    const floatVal = attrs?.float;
+    const widthVal = attrs?.width;
+    const heightVal = attrs?.height;
+    // Float: data-float attribute for CSS-driven text wrapping
+    const float =
+      floatVal != null && typeof floatVal === 'string' && floatVal !== 'none'
+        ? ` data-float="${escapeHtml(floatVal)}"`
+        : '';
+    const styles: string[] = [];
+    if (widthVal != null && (typeof widthVal === 'string' || typeof widthVal === 'number')) {
+      const w = String(widthVal);
+      if (w && w !== 'auto') styles.push(`width: ${/^\d+$/.test(w) ? w + 'px' : w}`);
+    }
+    if (heightVal != null && (typeof heightVal === 'string' || typeof heightVal === 'number')) {
+      const h = String(heightVal);
+      if (h && h !== 'auto') styles.push(`height: ${/^\d+$/.test(h) ? h + 'px' : h}`);
+    }
+    const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
+    const embedSrc = toCodeWidgetEmbedUrl(src);
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
+  },
+
   formula: (value) => {
     const latex = typeof value === 'string' ? value : '';
     return `<span class="formula" data-formula="${escapeHtml(latex)}">${escapeHtml(latex)}</span>`;
@@ -319,4 +343,91 @@ export function fromVideoEmbedUrl(embedUrl: string): string {
   // VK Video, Vimeo, Dailymotion, etc. — keep embed URL as-is
   // (VK Video requires hash parameter that can't be reconstructed)
   return embedUrl;
+}
+
+/** Split a URL into base path, query (incl. leading `?`) and hash (incl. `#`). */
+function splitUrl(url: string): { base: string; query: string; hash: string } {
+  let rest = url;
+  let hash = '';
+  const hashIdx = rest.indexOf('#');
+  if (hashIdx >= 0) {
+    hash = rest.slice(hashIdx);
+    rest = rest.slice(0, hashIdx);
+  }
+  let query = '';
+  const qIdx = rest.indexOf('?');
+  if (qIdx >= 0) {
+    query = rest.slice(qIdx);
+    rest = rest.slice(0, qIdx);
+  }
+  return { base: rest, query, hash };
+}
+
+/** Whether the URL already carries the given query parameter. */
+function hasQueryParam(url: string, key: string): boolean {
+  const { query } = splitUrl(url);
+  return new RegExp(`[?&]${key}=`, 'i').test(query);
+}
+
+/** Append `key=value` to the URL's query string, preserving any hash. */
+function appendQueryParam(url: string, key: string, value: string): string {
+  const { base, query, hash } = splitUrl(url);
+  const next = query ? `${query}&${key}=${value}` : `?${key}=${value}`;
+  return `${base}${next}${hash}`;
+}
+
+/**
+ * Convert a code-playground URL to an embeddable iframe URL (Phase 8 Part 3.5).
+ *
+ * Idempotent: a URL that is already in embed form is returned unchanged, so the
+ * Delta → HTML → Delta round-trip is stable regardless of which form is stored.
+ *
+ *   Provider     | User URL                         | Embed URL
+ *   -------------|----------------------------------|-----------------------------------
+ *   StackBlitz   | stackblitz.com/edit/{id}         | …?embed=1
+ *                | stackblitz.com/github/{u}/{r}    | …?embed=1
+ *   CodeSandbox  | codesandbox.io/s/{id}            | codesandbox.io/embed/{id}
+ *   Replit       | replit.com/@{u}/{repl}           | …?embed=true
+ *   CodePen      | codepen.io/{u}/pen/{id}          | codepen.io/{u}/embed/{id}
+ *   JSFiddle     | jsfiddle.net/{u}/{id}/           | jsfiddle.net/{u}/{id}/embedded/
+ *
+ * Unknown hosts are returned unchanged (the marker `data-code-widget` still
+ * makes them render as an iframe; auto-detection of bare URLs lives in the
+ * editor layer).
+ */
+export function toCodeWidgetEmbedUrl(url: string): string {
+  const u = typeof url === 'string' ? url.trim() : '';
+  if (!u) return '';
+
+  // StackBlitz — add ?embed=1
+  if (/(?:\/\/|^)(?:[\w-]+\.)*stackblitz\.com\//i.test(u)) {
+    return hasQueryParam(u, 'embed') ? u : appendQueryParam(u, 'embed', '1');
+  }
+
+  // CodeSandbox — /s/{id} → /embed/{id}
+  if (/(?:\/\/|^)(?:[\w-]+\.)*codesandbox\.io\//i.test(u)) {
+    if (/codesandbox\.io\/embed\//i.test(u)) return u;
+    return u.replace(/codesandbox\.io\/s\//i, 'codesandbox.io/embed/');
+  }
+
+  // Replit — add ?embed=true
+  if (/(?:\/\/|^)(?:[\w-]+\.)*replit\.com\//i.test(u)) {
+    return hasQueryParam(u, 'embed') ? u : appendQueryParam(u, 'embed', 'true');
+  }
+
+  // CodePen — /{user}/pen/{id} → /{user}/embed/{id}
+  if (/(?:\/\/|^)(?:[\w-]+\.)*codepen\.io\//i.test(u)) {
+    if (/codepen\.io\/[^/]+\/embed\//i.test(u)) return u;
+    return u.replace(/(codepen\.io\/[^/]+)\/pen\//i, '$1/embed/');
+  }
+
+  // JSFiddle — ensure trailing /embedded/
+  if (/(?:\/\/|^)(?:[\w-]+\.)*jsfiddle\.net\//i.test(u)) {
+    const { base, query, hash } = splitUrl(u);
+    if (/\/embedded(?:\/|$)/i.test(base)) return u;
+    const trimmed = base.replace(/\/+$/, '');
+    return `${trimmed}/embedded/${query}${hash}`;
+  }
+
+  return u;
 }

@@ -1,21 +1,31 @@
 import type { Format, FormatMatchResult } from '../../Format';
 import type { DOMElement } from '../../../conversion/adapters/types';
 import type { AttributeMap } from '@scrider/delta';
-import { escapeHtml, toVideoEmbedUrl, fromVideoEmbedUrl } from '../../../conversion/html/config';
+import { escapeHtml, toCodeWidgetEmbedUrl } from '../../../conversion/html/config';
 
 /**
- * Video embed format
+ * Code Widget embed format (Phase 8 Part 3.5)
  *
- * Delta: { insert: { video: "https://youtube.com/watch?v=..." } }
+ * Delta: { insert: { codeWidget: "https://codesandbox.io/s/abc123" } }
  *
- * Value is the video URL
+ * Value is a URL to an interactive code playground (StackBlitz, CodeSandbox,
+ * Replit, CodePen, JSFiddle). Rendered as an <iframe> carrying a
+ * `data-code-widget` marker so it can be told apart from a plain video iframe
+ * during HTML → Delta (see videoFormat.match guard).
+ *
+ * Markdown: ![Widget](url)
+ * HTML: <iframe data-code-widget src="<embed-url>" frameborder="0" allowfullscreen>
+ *
+ * The src is run through `toCodeWidgetEmbedUrl` at render time, which is
+ * idempotent, so resize/float attributes and the Delta ↔ HTML round-trip stay
+ * stable regardless of whether the stored value is the user URL or embed URL.
  */
-export const videoFormat: Format<string> = {
-  name: 'video',
+export const codeWidgetFormat: Format<string> = {
+  name: 'codeWidget',
   scope: 'embed',
 
   normalize(value: string): string {
-    return value.trim();
+    return typeof value === 'string' ? value.trim() : value;
   },
 
   validate(value: string): boolean {
@@ -63,21 +73,13 @@ export const videoFormat: Format<string> = {
       if (h && h !== 'auto') styles.push(`height: ${/^\d+$/.test(h) ? h + 'px' : h}`);
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
-    const embedSrc = toVideoEmbedUrl(src);
-    if (embedSrc) {
-      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
-    }
-    return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
+    const embedSrc = toCodeWidgetEmbedUrl(src);
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
   },
 
   match(element: DOMElement): FormatMatchResult<string> | null {
-    // Code Widget embeds (Phase 8 Part 3.5) reuse <iframe> with a
-    // `data-code-widget` marker — let codeWidgetFormat own them so they are
-    // not swallowed as a generic video iframe during HTML → Delta.
-    if (element.getAttribute('data-code-widget') !== null) return null;
-
-    const tagName = element.tagName.toLowerCase();
-    if (tagName !== 'video' && tagName !== 'iframe') return null;
+    if (element.tagName.toLowerCase() !== 'iframe') return null;
+    if (element.getAttribute('data-code-widget') === null) return null;
 
     const src = element.getAttribute('src');
     if (!src) return null;
@@ -88,15 +90,20 @@ export const videoFormat: Format<string> = {
 
     if (float) attrs.float = float;
 
-    // Extract width/height from inline style
+    // Extract width/height from inline style (parity with videoFormat)
     const widthMatch = styleAttr.match(/(?:^|;\s*)width:\s*([^;]+)/);
     if (widthMatch?.[1]) attrs.width = widthMatch[1].trim().replace(/px$/, '');
     const heightMatch = styleAttr.match(/(?:^|;\s*)height:\s*([^;]+)/);
     if (heightMatch?.[1]) attrs.height = heightMatch[1].trim().replace(/px$/, '');
 
     if (Object.keys(attrs).length > 0) {
-      return { value: fromVideoEmbedUrl(src), attributes: attrs };
+      return { value: src, attributes: attrs };
     }
-    return { value: fromVideoEmbedUrl(src) };
+    return { value: src };
+  },
+
+  toMarkdown(value: string): string {
+    const src = typeof value === 'string' ? value : '';
+    return `![Widget](${src})`;
   },
 };

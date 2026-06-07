@@ -65,6 +65,7 @@ export {
   tableColAlignFormat,
   // Embed
   blockFormat,
+  codeWidgetFormat,
   dividerFormat,
   footnoteRefFormat,
   formulaFormat,
@@ -131,6 +132,7 @@ export {
   normalizeDelta,
   sanitizeDelta,
   unescapeHtml,
+  toCodeWidgetEmbedUrl,
   validateDelta,
   // Markdown conversion
   deltaToMarkdown,

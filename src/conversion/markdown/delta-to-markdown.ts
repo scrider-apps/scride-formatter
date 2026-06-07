@@ -20,7 +20,7 @@ import {
   renderLink,
   renderCodeBlock,
 } from './config';
-import { escapeHtml, toVideoEmbedUrl } from '../html/config';
+import { escapeHtml, toVideoEmbedUrl, toCodeWidgetEmbedUrl } from '../html/config';
 import { deltaToHtml } from '../html/delta-to-html';
 
 /**
@@ -871,6 +871,45 @@ function renderEmbed(
 
     // Simple video without attributes → readable Markdown (like images)
     return `![Video](${src})`;
+  }
+
+  // Code Widget embed (Phase 8 Part 3.5) — mirrors video's float/width/height
+  // handling. When attributes are present, emit HTML with the data-code-widget
+  // marker so HTML → Delta routes it back to codeWidget (not video).
+  if (embedType === 'codeWidget') {
+    const src = typeof embedValue === 'string' ? embedValue : '';
+
+    const hasFloat =
+      attributes?.float != null &&
+      typeof attributes.float === 'string' &&
+      attributes.float !== 'none';
+    const hasWidth = attributes?.width != null;
+    const hasHeight = attributes?.height != null;
+
+    if (hasFloat || hasWidth || hasHeight) {
+      const floatAttr = hasFloat ? ` data-float="${escapeHtml(String(attributes.float))}"` : '';
+      const styles: string[] = [];
+      if (hasWidth) {
+        const w =
+          typeof attributes.width === 'string' || typeof attributes.width === 'number'
+            ? String(attributes.width)
+            : '';
+        if (w && w !== 'auto') styles.push(`width: ${/^\d+$/.test(w) ? w + 'px' : w}`);
+      }
+      if (hasHeight) {
+        const h =
+          typeof attributes.height === 'string' || typeof attributes.height === 'number'
+            ? String(attributes.height)
+            : '';
+        if (h && h !== 'auto') styles.push(`height: ${/^\d+$/.test(h) ? h + 'px' : h}`);
+      }
+      const styleAttr = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
+      const embedSrc = toCodeWidgetEmbedUrl(src);
+      return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${floatAttr}${styleAttr}></iframe>`;
+    }
+
+    // Simple widget without attributes → readable Markdown (like images)
+    return `![Widget](${src})`;
   }
 
   if (embedType === 'formula') {

@@ -1,4 +1,5 @@
 export { blockFormat } from './block';
+export { codeWidgetFormat } from './codeWidget';
 export { diagramFormat } from './diagram';
 export { dividerFormat } from './divider';
 export { drawioFormat } from './drawio';
