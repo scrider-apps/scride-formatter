@@ -1,7 +1,12 @@
-import type { Format, FormatMatchResult } from '../../Format';
+import type { Format, FormatMatchResult, FormatRenderContext } from '../../Format';
 import type { DOMElement } from '../../../conversion/adapters/types';
 import type { AttributeMap } from '@scrider/delta';
-import { escapeHtml, toVideoEmbedUrl, fromVideoEmbedUrl } from '../../../conversion/html/config';
+import {
+  escapeHtml,
+  renderEmbedIframeIsolationAttrs,
+  toVideoEmbedUrl,
+  fromVideoEmbedUrl,
+} from '../../../conversion/html/config';
 
 /**
  * Video embed format
@@ -44,7 +49,7 @@ export const videoFormat: Format<string> = {
     }
   },
 
-  render(value: string, attributes?: AttributeMap): string {
+  render(value: string, attributes?: AttributeMap, context?: FormatRenderContext): string {
     const src = typeof value === 'string' ? value : '';
     const floatVal = attributes?.float;
     const widthVal = attributes?.width;
@@ -65,11 +70,7 @@ export const videoFormat: Format<string> = {
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toVideoEmbedUrl(src);
     if (embedSrc) {
-      // `credentialless`: load the third-party video frame in an ephemeral
-      // (cookieless) context so it isn't blocked when the host opts into
-      // cross-origin isolation (COEP). Harmless on non-isolated hosts and
-      // ignored by browsers without support.
-      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen credentialless${float}${style}></iframe>`;
+      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${renderEmbedIframeIsolationAttrs(context, 'video')}${float}${style}></iframe>`;
     }
     return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
   },

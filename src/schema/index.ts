@@ -1,5 +1,12 @@
 // Core types and classes
-export type { Format, FormatDefinition, FormatMatchResult, FormatScope } from './Format';
+export type {
+  EmbedIsolationOptions,
+  Format,
+  FormatDefinition,
+  FormatMatchResult,
+  FormatRenderContext,
+  FormatScope,
+} from './Format';
 export { Registry } from './Registry';
 
 // Block handler infrastructure

@@ -4,6 +4,8 @@
  * Defines the mapping between HTML elements/attributes and Delta attributes.
  */
 
+import type { FormatRenderContext } from '../../schema/Format';
+
 /**
  * Inline format to HTML tag mapping
  *
@@ -75,7 +77,11 @@ export const LIST_WRAPPER_TAGS: Record<string, string> = {
 /**
  * Embed format to HTML renderer
  */
-export type EmbedRenderer = (value: unknown, attributes?: Record<string, unknown>) => string;
+export type EmbedRenderer = (
+  value: unknown,
+  attributes?: Record<string, unknown>,
+  context?: FormatRenderContext,
+) => string;
 
 export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
   image: (value, attrs) => {
@@ -104,7 +110,7 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     return `<img src="${escapeHtml(src)}"${alt}${width}${height}${float}>`;
   },
 
-  video: (value, attrs) => {
+  video: (value, attrs, context) => {
     const src = typeof value === 'string' ? value : '';
     const floatVal = attrs?.float;
     const widthVal = attrs?.width;
@@ -126,16 +132,12 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toVideoEmbedUrl(src);
     if (embedSrc) {
-      // `credentialless`: load the third-party video frame in an ephemeral
-      // (cookieless) context so it isn't blocked when the host page opts into
-      // cross-origin isolation (COEP). Harmless on non-isolated hosts and
-      // ignored by browsers without support. See CODE_WIDGET_IFRAME_ALLOW.
-      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen credentialless${float}${style}></iframe>`;
+      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${renderEmbedIframeIsolationAttrs(context, 'video')}${float}${style}></iframe>`;
     }
     return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
   },
 
-  codeWidget: (value, attrs) => {
+  codeWidget: (value, attrs, context) => {
     const src = typeof value === 'string' ? value : '';
     const floatVal = attrs?.float;
     const widthVal = attrs?.width;
@@ -156,7 +158,7 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toCodeWidgetEmbedUrl(src);
-    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen allow="${CODE_WIDGET_IFRAME_ALLOW}" credentialless${float}${style}></iframe>`;
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${renderEmbedIframeIsolationAttrs(context, 'codeWidget')}${float}${style}></iframe>`;
   },
 
   formula: (value) => {
@@ -392,20 +394,33 @@ function appendQueryParam(url: string, key: string, value: string): string {
  * the embed renders blank (CodeSandbox/CodePen/Replit/JSFiddle don't use
  * WebContainers, so the token is simply ignored — harmless). The remaining
  * device tokens mirror the StackBlitz SDK default embed iframe.
- * See https://webcontainers.io/guides/troubleshooting.
+ * Opt-in via `deltaToHtml({ embed: { crossOriginIsolated: true } })` on
+ * codeWidget iframes. Together with `embed.credentialless`, enables
+ * isolation-ready output for hosts that serve `COOP` + `COEP`.
  *
- * The code-widget iframe is also rendered with the boolean `credentialless`
- * attribute (see codeWidget render): under a cross-origin-isolated host
- * (`COEP`), a cross-origin iframe without its own COEP is blocked unless it is
- * `credentialless` (loaded in an ephemeral, cookieless context). This is the
- * right default for a public playground embed, is harmless on non-isolated
- * hosts, and is ignored by browsers that don't support it. Enabling the live
- * WebContainer preview remains the *host's* responsibility (it must serve
- * `COOP: same-origin` + `COEP: credentialless`); the editor only emits an
- * isolation-ready iframe.
+ * See https://webcontainers.io/guides/troubleshooting.
  */
 export const CODE_WIDGET_IFRAME_ALLOW =
   'accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb; vr; xr-spatial-tracking; cross-origin-isolated';
+
+/**
+ * Optional iframe isolation attributes for cross-origin embeds (video iframe,
+ * codeWidget). Emitted only when the host passes `deltaToHtml({ embed: … })`.
+ */
+export function renderEmbedIframeIsolationAttrs(
+  context: FormatRenderContext | undefined,
+  kind: 'codeWidget' | 'video',
+): string {
+  const opts = context?.embed;
+  const parts: string[] = [];
+  if (kind === 'codeWidget' && opts?.crossOriginIsolated) {
+    parts.push(`allow="${CODE_WIDGET_IFRAME_ALLOW}"`);
+  }
+  if (opts?.credentialless) {
+    parts.push('credentialless');
+  }
+  return parts.length ? ` ${parts.join(' ')}` : '';
+}
 
 /**
  * Convert a code-playground URL to an embeddable iframe URL (Phase 8 Part 3.5).

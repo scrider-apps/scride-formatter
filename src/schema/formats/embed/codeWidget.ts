@@ -1,12 +1,11 @@
-import type { Format, FormatMatchResult } from '../../Format';
+import type { Format, FormatMatchResult, FormatRenderContext } from '../../Format';
 import type { DOMElement } from '../../../conversion/adapters/types';
 import type { AttributeMap } from '@scrider/delta';
 import {
-  CODE_WIDGET_IFRAME_ALLOW,
   escapeHtml,
+  renderEmbedIframeIsolationAttrs,
   toCodeWidgetEmbedUrl,
 } from '../../../conversion/html/config';
-
 /**
  * Code Widget embed format (Phase 8 Part 3.5)
  *
@@ -19,13 +18,16 @@ import {
  *
  * Markdown: ![Widget](url)
  * HTML: <iframe data-code-widget src="<embed-url>" frameborder="0" allowfullscreen
- *         allow="…; cross-origin-isolated" credentialless>
+ *         [allow="…; cross-origin-isolated"] [credentialless]>
+ *
+ * Isolation attrs (`allow="…; cross-origin-isolated"`, `credentialless`) are
+ * opt-in via `deltaToHtml({ embed: { crossOriginIsolated, credentialless } })`.
+ * Default off — public embeds (CodePen) load with browser cookies.
  *
  * The `allow="…; cross-origin-isolated"` list (see CODE_WIDGET_IFRAME_ALLOW)
  * delegates the cross-origin-isolated capability so StackBlitz WebContainer
- * embeds can boot SharedArrayBuffer; without it those embeds render blank.
- * `credentialless` keeps the frame loadable under a cross-origin-isolated host
- * (COEP) — enabling the live preview is the host's responsibility.
+ * embeds can boot SharedArrayBuffer when the host is cross-origin-isolated.
+ * `credentialless` keeps the frame loadable under COEP on such a host.
  *
  * The src is run through `toCodeWidgetEmbedUrl` at render time, which is
  * idempotent, so resize/float attributes and the Delta ↔ HTML round-trip stay
@@ -65,7 +67,7 @@ export const codeWidgetFormat: Format<string> = {
     }
   },
 
-  render(value: string, attributes?: AttributeMap): string {
+  render(value: string, attributes?: AttributeMap, context?: FormatRenderContext): string {
     const src = typeof value === 'string' ? value : '';
     const floatVal = attributes?.float;
     const widthVal = attributes?.width;
@@ -85,7 +87,7 @@ export const codeWidgetFormat: Format<string> = {
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toCodeWidgetEmbedUrl(src);
-    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen allow="${CODE_WIDGET_IFRAME_ALLOW}" credentialless${float}${style}></iframe>`;
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${renderEmbedIframeIsolationAttrs(context, 'codeWidget')}${float}${style}></iframe>`;
   },
 
   match(element: DOMElement): FormatMatchResult<string> | null {

@@ -461,6 +461,16 @@ describe('deltaToHtml', () => {
       const delta = new Delta().insert({ video: 'https://youtube.com/embed/abc123' }).insert('\n');
 
       expect(deltaToHtml(delta)).toBe(
+        '<p><iframe src="https://youtube.com/embed/abc123" frameborder="0" allowfullscreen></iframe></p>',
+      );
+    });
+
+    it('converts YouTube embed with credentialless when embed isolation enabled', () => {
+      const delta = new Delta().insert({ video: 'https://youtube.com/embed/abc123' }).insert('\n');
+
+      expect(
+        deltaToHtml(delta, { embed: { credentialless: true } }),
+      ).toBe(
         '<p><iframe src="https://youtube.com/embed/abc123" frameborder="0" allowfullscreen credentialless></iframe></p>',
       );
     });

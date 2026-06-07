@@ -11,6 +11,28 @@ import type { AttributeMap } from '@scrider/delta';
 export type FormatScope = 'inline' | 'block' | 'embed';
 
 /**
+ * Cross-origin iframe isolation options for Delta → HTML (Phase 8 Part 3.5).
+ *
+ * Passed via `deltaToHtml({ embed: … })` and forwarded to embed `render()`.
+ * Default: both off — standard third-party iframes load with browser cookies
+ * (CodePen, YouTube). Enable when the host page is cross-origin-isolated
+ * (COOP + COEP) and needs StackBlitz WebContainer live preview.
+ */
+export interface EmbedIsolationOptions {
+  /** Add `credentialless` on cross-origin iframe embeds. @default false */
+  credentialless?: boolean;
+  /** Add `allow="…; cross-origin-isolated"` on codeWidget iframes. @default false */
+  crossOriginIsolated?: boolean;
+}
+
+/**
+ * Optional context passed to Format.render() during conversion.
+ */
+export interface FormatRenderContext {
+  embed?: EmbedIsolationOptions;
+}
+
+/**
  * Result returned by Format.match() when an HTML element is recognized.
  */
 export interface FormatMatchResult<T = unknown> {
@@ -73,9 +95,10 @@ export interface Format<T = unknown> {
    *
    * @param value - The embed value (e.g. URL string)
    * @param attributes - Op-level attributes (alt, width, height, etc.)
+   * @param context - Render options (e.g. embed isolation for iframe embeds)
    * @returns HTML string
    */
-  render?(value: T, attributes?: AttributeMap): string;
+  render?(value: T, attributes?: AttributeMap, context?: FormatRenderContext): string;
 
   /**
    * Match an HTML element and extract Delta embed value.

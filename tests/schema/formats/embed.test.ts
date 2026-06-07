@@ -242,11 +242,19 @@ describe('Embed Formats', () => {
   });
 
   describe('videoFormat.render', () => {
-    it('should render YouTube as iframe', () => {
+    it('should render YouTube as iframe without isolation attrs by default', () => {
       const html = videoFormat.render!('https://www.youtube.com/watch?v=abc');
       expect(html).toContain('<iframe');
       expect(html).toContain('youtube.com/embed/abc');
-      // credentialless so the frame isn't COEP-blocked on an isolated host
+      expect(html).not.toContain('credentialless');
+    });
+
+    it('should add credentialless when embed isolation is enabled', () => {
+      const html = videoFormat.render!(
+        'https://www.youtube.com/watch?v=abc',
+        undefined,
+        { embed: { credentialless: true } },
+      );
       expect(html).toContain('credentialless');
     });
 

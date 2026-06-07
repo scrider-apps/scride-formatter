@@ -133,14 +133,24 @@ describe('Code Widget: Delta → HTML', () => {
     expect(html).toContain('allowfullscreen');
   });
 
-  it('delegates cross-origin-isolated so StackBlitz WebContainer can boot', () => {
+  it('does not emit isolation attrs by default (CodePen-friendly)', () => {
     const delta = new Delta()
       .insert({ codeWidget: 'https://stackblitz.com/edit/abc' })
       .insert('\n');
     const html = deltaToHtml(delta);
+    expect(html).not.toContain('credentialless');
+    expect(html).not.toContain('cross-origin-isolated');
+  });
+
+  it('delegates cross-origin-isolated when embed isolation is enabled', () => {
+    const delta = new Delta()
+      .insert({ codeWidget: 'https://stackblitz.com/edit/abc' })
+      .insert('\n');
+    const html = deltaToHtml(delta, {
+      embed: { credentialless: true, crossOriginIsolated: true },
+    });
     expect(html).toContain('allow="');
     expect(html).toContain('cross-origin-isolated');
-    // credentialless so the frame loads under a cross-origin-isolated (COEP) host
     expect(html).toContain('credentialless');
   });
 

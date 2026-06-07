@@ -40,6 +40,7 @@ export {
 export {
   deltaToHtml,
   type DeltaToHtmlOptions,
+  type EmbedIsolationOptions,
   type TableCellAlign,
   type TablePresentation,
   type DocumentPresentation,
@@ -80,6 +81,8 @@ export {
   escapeHtml,
   unescapeHtml,
   toCodeWidgetEmbedUrl,
+  renderEmbedIframeIsolationAttrs,
+  CODE_WIDGET_IFRAME_ALLOW,
   type EmbedRenderer,
 } from './html';
 

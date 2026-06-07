@@ -9,6 +9,7 @@ import type { Op, AttributeMap } from '@scrider/delta';
 import type { BlockHandlerRegistry } from '../../schema/BlockHandlerRegistry';
 import type { BlockContext } from '../../schema/BlockHandler';
 import type { Registry } from '../../schema/Registry';
+import type { EmbedIsolationOptions, FormatRenderContext } from '../../schema/Format';
 import {
   INLINE_FORMAT_ORDER,
   INLINE_FORMAT_TAGS,
@@ -35,6 +36,8 @@ import {
 } from './table-presentation';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
+
+export type { EmbedIsolationOptions };
 
 /**
  * Options for Delta → HTML conversion
@@ -108,6 +111,13 @@ export interface DeltaToHtmlOptions {
    * Office/HTML export and clipboard. Does not change Delta.
    */
   documentPresentation?: DocumentPresentation;
+
+  /**
+   * Cross-origin iframe isolation for embed formats (codeWidget, video iframe).
+   * Default: both off — standard third-party iframes load with browser cookies.
+   * Enable when the host page is cross-origin-isolated (COOP + COEP).
+   */
+  embed?: EmbedIsolationOptions;
 }
 
 /**
@@ -986,19 +996,21 @@ function renderEmbed(
 
   const embedValue: unknown = value[embedType];
 
+  const embedContext: FormatRenderContext = options?.embed != null ? { embed: options.embed } : {};
+
   // Check registry format render() first
   const registry = options?.registry;
   if (registry) {
     const format = registry.get(embedType);
     if (format?.render) {
-      return format.render(embedValue, attributes);
+      return format.render(embedValue, attributes, embedContext);
     }
   }
 
-  const renderer: ((value: unknown, attrs?: Record<string, unknown>) => string) | undefined =
+  const renderer: ((value: unknown, attrs?: Record<string, unknown>, context?: FormatRenderContext) => string) | undefined =
     renderers[embedType];
   if (renderer) {
-    return renderer(embedValue, attributes as Record<string, unknown> | undefined);
+    return renderer(embedValue, attributes as Record<string, unknown> | undefined, embedContext);
   }
 
   // Fallback: render as data attribute
