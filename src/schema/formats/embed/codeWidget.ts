@@ -1,7 +1,11 @@
 import type { Format, FormatMatchResult } from '../../Format';
 import type { DOMElement } from '../../../conversion/adapters/types';
 import type { AttributeMap } from '@scrider/delta';
-import { escapeHtml, toCodeWidgetEmbedUrl } from '../../../conversion/html/config';
+import {
+  CODE_WIDGET_IFRAME_ALLOW,
+  escapeHtml,
+  toCodeWidgetEmbedUrl,
+} from '../../../conversion/html/config';
 
 /**
  * Code Widget embed format (Phase 8 Part 3.5)
@@ -14,7 +18,12 @@ import { escapeHtml, toCodeWidgetEmbedUrl } from '../../../conversion/html/confi
  * during HTML → Delta (see videoFormat.match guard).
  *
  * Markdown: ![Widget](url)
- * HTML: <iframe data-code-widget src="<embed-url>" frameborder="0" allowfullscreen>
+ * HTML: <iframe data-code-widget src="<embed-url>" frameborder="0" allowfullscreen
+ *         allow="…; cross-origin-isolated">
+ *
+ * The `allow="…; cross-origin-isolated"` list (see CODE_WIDGET_IFRAME_ALLOW)
+ * delegates the cross-origin-isolated capability so StackBlitz WebContainer
+ * embeds can boot SharedArrayBuffer; without it those embeds render blank.
  *
  * The src is run through `toCodeWidgetEmbedUrl` at render time, which is
  * idempotent, so resize/float attributes and the Delta ↔ HTML round-trip stay
@@ -74,7 +83,7 @@ export const codeWidgetFormat: Format<string> = {
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toCodeWidgetEmbedUrl(src);
-    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen allow="${CODE_WIDGET_IFRAME_ALLOW}"${float}${style}></iframe>`;
   },
 
   match(element: DOMElement): FormatMatchResult<string> | null {

@@ -152,7 +152,7 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toCodeWidgetEmbedUrl(src);
-    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen allow="${CODE_WIDGET_IFRAME_ALLOW}"${float}${style}></iframe>`;
   },
 
   formula: (value) => {
@@ -375,6 +375,23 @@ function appendQueryParam(url: string, key: string, value: string): string {
   const next = query ? `${query}&${key}=${value}` : `?${key}=${value}`;
   return `${base}${next}${hash}`;
 }
+
+/**
+ * Permissions-Policy `allow` list for code-widget iframes (Phase 8 Part 3.5).
+ *
+ * `cross-origin-isolated` is the load-bearing token: StackBlitz projects run a
+ * dev server inside a WebContainer, which needs `SharedArrayBuffer` and thus a
+ * cross-origin-isolated context. StackBlitz holds the Chrome
+ * `UnrestrictedSharedArrayBuffer` origin trial, but that capability only
+ * propagates into a cross-origin iframe when the embedder delegates it via
+ * `allow="cross-origin-isolated"`. Without it the WebContainer never boots and
+ * the embed renders blank (CodeSandbox/CodePen/Replit/JSFiddle don't use
+ * WebContainers, so the token is simply ignored — harmless). The remaining
+ * device tokens mirror the StackBlitz SDK default embed iframe.
+ * See https://webcontainers.io/guides/troubleshooting.
+ */
+export const CODE_WIDGET_IFRAME_ALLOW =
+  'accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb; vr; xr-spatial-tracking; cross-origin-isolated';
 
 /**
  * Convert a code-playground URL to an embeddable iframe URL (Phase 8 Part 3.5).

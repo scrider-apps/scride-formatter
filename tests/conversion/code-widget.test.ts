@@ -133,6 +133,15 @@ describe('Code Widget: Delta → HTML', () => {
     expect(html).toContain('allowfullscreen');
   });
 
+  it('delegates cross-origin-isolated so StackBlitz WebContainer can boot', () => {
+    const delta = new Delta()
+      .insert({ codeWidget: 'https://stackblitz.com/edit/abc' })
+      .insert('\n');
+    const html = deltaToHtml(delta);
+    expect(html).toContain('allow="');
+    expect(html).toContain('cross-origin-isolated');
+  });
+
   it('applies float + width + height', () => {
     const delta = new Delta()
       .insert(
