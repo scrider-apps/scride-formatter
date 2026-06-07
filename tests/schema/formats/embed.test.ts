@@ -246,6 +246,14 @@ describe('Embed Formats', () => {
       const html = videoFormat.render!('https://www.youtube.com/watch?v=abc');
       expect(html).toContain('<iframe');
       expect(html).toContain('youtube.com/embed/abc');
+      // credentialless so the frame isn't COEP-blocked on an isolated host
+      expect(html).toContain('credentialless');
+    });
+
+    it('should NOT add credentialless to a direct <video> element', () => {
+      const html = videoFormat.render!('https://example.com/video.mp4');
+      expect(html).toContain('<video');
+      expect(html).not.toContain('credentialless');
     });
 
     it('should render direct video as <video>', () => {

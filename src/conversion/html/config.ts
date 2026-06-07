@@ -126,7 +126,11 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toVideoEmbedUrl(src);
     if (embedSrc) {
-      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
+      // `credentialless`: load the third-party video frame in an ephemeral
+      // (cookieless) context so it isn't blocked when the host page opts into
+      // cross-origin isolation (COEP). Harmless on non-isolated hosts and
+      // ignored by browsers without support. See CODE_WIDGET_IFRAME_ALLOW.
+      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen credentialless${float}${style}></iframe>`;
     }
     return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
   },
@@ -152,7 +156,7 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toCodeWidgetEmbedUrl(src);
-    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen allow="${CODE_WIDGET_IFRAME_ALLOW}"${float}${style}></iframe>`;
+    return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen allow="${CODE_WIDGET_IFRAME_ALLOW}" credentialless${float}${style}></iframe>`;
   },
 
   formula: (value) => {
@@ -389,6 +393,16 @@ function appendQueryParam(url: string, key: string, value: string): string {
  * WebContainers, so the token is simply ignored — harmless). The remaining
  * device tokens mirror the StackBlitz SDK default embed iframe.
  * See https://webcontainers.io/guides/troubleshooting.
+ *
+ * The code-widget iframe is also rendered with the boolean `credentialless`
+ * attribute (see codeWidget render): under a cross-origin-isolated host
+ * (`COEP`), a cross-origin iframe without its own COEP is blocked unless it is
+ * `credentialless` (loaded in an ephemeral, cookieless context). This is the
+ * right default for a public playground embed, is harmless on non-isolated
+ * hosts, and is ignored by browsers that don't support it. Enabling the live
+ * WebContainer preview remains the *host's* responsibility (it must serve
+ * `COOP: same-origin` + `COEP: credentialless`); the editor only emits an
+ * isolation-ready iframe.
  */
 export const CODE_WIDGET_IFRAME_ALLOW =
   'accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb; vr; xr-spatial-tracking; cross-origin-isolated';

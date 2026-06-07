@@ -65,7 +65,11 @@ export const videoFormat: Format<string> = {
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
     const embedSrc = toVideoEmbedUrl(src);
     if (embedSrc) {
-      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${float}${style}></iframe>`;
+      // `credentialless`: load the third-party video frame in an ephemeral
+      // (cookieless) context so it isn't blocked when the host opts into
+      // cross-origin isolation (COEP). Harmless on non-isolated hosts and
+      // ignored by browsers without support.
+      return `<iframe src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen credentialless${float}${style}></iframe>`;
     }
     return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
   },

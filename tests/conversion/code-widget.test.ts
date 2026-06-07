@@ -140,6 +140,8 @@ describe('Code Widget: Delta → HTML', () => {
     const html = deltaToHtml(delta);
     expect(html).toContain('allow="');
     expect(html).toContain('cross-origin-isolated');
+    // credentialless so the frame loads under a cross-origin-isolated (COEP) host
+    expect(html).toContain('credentialless');
   });
 
   it('applies float + width + height', () => {
