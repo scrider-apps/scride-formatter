@@ -401,7 +401,7 @@ function appendQueryParam(url: string, key: string, value: string): string {
  * See https://webcontainers.io/guides/troubleshooting.
  */
 export const CODE_WIDGET_IFRAME_ALLOW =
-  'accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb; vr; xr-spatial-tracking; cross-origin-isolated';
+  'accelerometer; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb; xr-spatial-tracking; cross-origin-isolated';
 
 /**
  * Optional iframe isolation attributes for cross-origin embeds (video iframe,
