@@ -12,7 +12,7 @@ import {
  * Delta: { insert: { codeWidget: "https://codesandbox.io/s/abc123" } }
  *
  * Value is a URL to an interactive code playground (StackBlitz, CodeSandbox,
- * Replit, CodePen, JSFiddle). Rendered as an <iframe> carrying a
+ * Replit, CodePen, JSFiddle, Trinket, OneCompiler). Rendered as an <iframe> carrying a
  * `data-code-widget` marker so it can be told apart from a plain video iframe
  * during HTML → Delta (see videoFormat.match guard).
  *

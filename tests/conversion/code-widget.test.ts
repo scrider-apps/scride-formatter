@@ -90,6 +90,24 @@ describe('toCodeWidgetEmbedUrl', () => {
     );
   });
 
+  it('Trinket: /{lang}/{id} → /embed/{lang}/{id}', () => {
+    expect(toCodeWidgetEmbedUrl('https://trinket.io/python3/abc123')).toBe(
+      'https://trinket.io/embed/python3/abc123',
+    );
+  });
+
+  it('OneCompiler: /{lang}/{id} → /embed/{lang}/{id}', () => {
+    expect(toCodeWidgetEmbedUrl('https://onecompiler.com/python/xyz789')).toBe(
+      'https://onecompiler.com/embed/python/xyz789',
+    );
+  });
+
+  it('OneCompiler: blank editor /embed/{lang} unchanged', () => {
+    expect(toCodeWidgetEmbedUrl('https://onecompiler.com/embed/python')).toBe(
+      'https://onecompiler.com/embed/python',
+    );
+  });
+
   it('unknown host returned unchanged', () => {
     expect(toCodeWidgetEmbedUrl('https://example.com/playground/x')).toBe(
       'https://example.com/playground/x',
@@ -107,6 +125,9 @@ describe('toCodeWidgetEmbedUrl', () => {
       'https://replit.com/@user/my-repl?embed=true',
       'https://codepen.io/user/embed/abcDEF',
       'https://jsfiddle.net/user/abc123/embedded/',
+      'https://trinket.io/embed/python3/abc123',
+      'https://onecompiler.com/embed/python/xyz789',
+      'https://onecompiler.com/embed/python',
     ];
     for (const u of urls) {
       expect(toCodeWidgetEmbedUrl(u)).toBe(u);

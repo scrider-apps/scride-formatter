@@ -436,6 +436,8 @@ export function renderEmbedIframeIsolationAttrs(
  *   Replit       | replit.com/@{u}/{repl}           | …?embed=true
  *   CodePen      | codepen.io/{u}/pen/{id}          | codepen.io/{u}/embed/{id}
  *   JSFiddle     | jsfiddle.net/{u}/{id}/           | jsfiddle.net/{u}/{id}/embedded/
+ *   Trinket      | trinket.io/{lang}/{id}           | trinket.io/embed/{lang}/{id}
+ *   OneCompiler  | onecompiler.com/{lang}/{id}      | onecompiler.com/embed/{lang}/{id}
  *
  * Unknown hosts are returned unchanged (the marker `data-code-widget` still
  * makes them render as an iframe; auto-detection of bare URLs lives in the
@@ -473,6 +475,18 @@ export function toCodeWidgetEmbedUrl(url: string): string {
     if (/\/embedded(?:\/|$)/i.test(base)) return u;
     const trimmed = base.replace(/\/+$/, '');
     return `${trimmed}/embedded/${query}${hash}`;
+  }
+
+  // Trinket — /{lang}/{id} → /embed/{lang}/{id}
+  if (/(?:\/\/|^)(?:[\w-]+\.)*trinket\.io\//i.test(u)) {
+    if (/trinket\.io\/embed\//i.test(u)) return u;
+    return u.replace(/trinket\.io\//i, 'trinket.io/embed/');
+  }
+
+  // OneCompiler — /{lang}/{id} → /embed/{lang}/{id}
+  if (/(?:\/\/|^)(?:[\w-]+\.)*onecompiler\.com\//i.test(u)) {
+    if (/onecompiler\.com\/embed\//i.test(u)) return u;
+    return u.replace(/onecompiler\.com\//i, 'onecompiler.com/embed/');
   }
 
   return u;
