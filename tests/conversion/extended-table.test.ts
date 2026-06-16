@@ -632,7 +632,7 @@ describe('Extended Table: Delta → Markdown', () => {
     const md = deltaToMarkdown(delta, { blockHandlers });
     // Should render as GFM with synthesized empty header row
     expect(md).not.toContain('<table>');
-    expect(md).toContain('|   |   |');
+    expect(md).toContain('|  |  |');
     expect(md).toContain('| --- | --- |');
     expect(md).toContain('| A | B |');
   });
@@ -758,7 +758,7 @@ describe('Extended Table: Delta → GFM Markdown', () => {
       .trim()
       .split('\n')
       .filter((l) => l.startsWith('|'));
-    expect(tableLines[0]).toBe('|   |   |'); // synthesized empty header
+    expect(tableLines[0]).toBe('|  |  |'); // synthesized empty header (headerless)
     expect(tableLines[1]).toBe('| --- | --- |'); // separator
     expect(tableLines[2]).toBe('| A | B |');
     expect(tableLines[3]).toBe('| C | D |');

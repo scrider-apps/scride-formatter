@@ -9,6 +9,7 @@ import type { Op, AttributeMap, InsertOp } from '@scrider/delta';
 import type { BlockHandlerRegistry } from '../../schema/BlockHandlerRegistry';
 import type { BlockContext } from '../../schema/BlockHandler';
 import type { Registry } from '../../schema/Registry';
+import { serializeHeaderCell } from './table-header-markdown';
 import {
   escapeMarkdown,
   INLINE_FORMAT_SYNTAX,
@@ -529,7 +530,15 @@ function renderMarkdownTable(
   if (headerRows.length > 0) {
     for (const [, row] of headerRows) {
       mdLines.push(
-        renderMdRow(row.cells, maxCol, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+        renderMdRow(
+          row.cells,
+          maxCol,
+          embedRenderers,
+          useLatexDelimiters,
+          registry,
+          softBreakStyle,
+          true,
+        ),
       );
     }
     mdLines.push(renderMdSeparator(maxCol, colAligns));
@@ -540,7 +549,15 @@ function renderMarkdownTable(
       emptyRow.set(col, { ops: [] });
     }
     mdLines.push(
-      renderMdRow(emptyRow, maxCol, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+      renderMdRow(
+        emptyRow,
+        maxCol,
+        embedRenderers,
+        useLatexDelimiters,
+        registry,
+        softBreakStyle,
+        false,
+      ),
     );
     mdLines.push(renderMdSeparator(maxCol, colAligns));
   }
@@ -548,7 +565,15 @@ function renderMarkdownTable(
   // Render body rows
   for (const [, row] of bodyRows) {
     mdLines.push(
-      renderMdRow(row.cells, maxCol, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
+      renderMdRow(
+        row.cells,
+        maxCol,
+        embedRenderers,
+        useLatexDelimiters,
+        registry,
+        softBreakStyle,
+        false,
+      ),
     );
   }
 
@@ -565,11 +590,12 @@ function renderMdRow(
   useLatexDelimiters: boolean = false,
   registry?: Registry,
   softBreakStyle: 'spaces' | 'html' = 'spaces',
+  isHeaderRow: boolean = false,
 ): string {
   const parts: string[] = [];
   for (let col = 0; col <= maxCol; col++) {
     const cell = cells.get(col);
-    const content = cell
+    let content = cell
       ? renderLineContent(
           cell.ops,
           embedRenderers,
@@ -582,6 +608,7 @@ function renderMdRow(
           true, // inTableCell — softBreak must use <br>, never "  \n"
         )
       : '';
+    if (isHeaderRow) content = serializeHeaderCell(content);
     // Escape pipe characters in cell content
     parts.push(content.replace(/\|/g, '\\|'));
   }

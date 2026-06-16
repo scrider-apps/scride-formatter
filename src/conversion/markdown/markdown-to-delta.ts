@@ -4,10 +4,11 @@
  * Converts Markdown string to a Delta document using remark (unified).
  */
 
-import { Delta } from '@scrider/delta';
+import { Delta, isInsert } from '@scrider/delta';
 import type { AttributeMap } from '@scrider/delta';
 import type { BlockHandlerRegistry } from '../../schema/BlockHandlerRegistry';
 import { htmlToDelta } from '../html/html-to-delta';
+import { normalizeImportedTableOps } from './table-header-normalize';
 
 /**
  * Options for Markdown → Delta conversion
@@ -834,6 +835,8 @@ function astToDelta(
   function processTable(node: MdastNode): void {
     if (!node.children) return;
 
+    const tableStart = delta.ops.length;
+
     // Table-level alignment array from remark-gfm
     const aligns: (string | null)[] = (node as unknown as { align: (string | null)[] }).align || [];
 
@@ -870,6 +873,16 @@ function astToDelta(
         }
 
         context.pushNewline(cellBlockAttrs);
+      }
+    }
+
+    const tableOps = delta.ops.splice(tableStart);
+    for (const op of normalizeImportedTableOps(tableOps)) {
+      if (!isInsert(op)) continue;
+      if (op.attributes && Object.keys(op.attributes).length > 0) {
+        delta.insert(op.insert, op.attributes);
+      } else {
+        delta.insert(op.insert);
       }
     }
   }

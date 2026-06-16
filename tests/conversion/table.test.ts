@@ -460,10 +460,21 @@ describe('Simple Table', () => {
       const delta = makeNoHeaderTable();
       const md = deltaToMarkdown(delta);
 
-      // Should have a header row (empty), separator, and body rows
-      const lines = md.split('\n');
-      const tableLines = lines.filter((l) => l.startsWith('|'));
-      expect(tableLines.length).toBeGreaterThanOrEqual(4); // empty header + separator + 2 body rows
+      const lines = md.split('\n').filter((l) => l.startsWith('|'));
+      expect(lines[0]).toBe('|  |  |');
+    });
+
+    it('renders empty structural header with dash placeholders', () => {
+      const delta = new Delta()
+        .insert('\n', { 'table-row': 0, 'table-col': 0, 'table-header': true })
+        .insert('\n', { 'table-row': 0, 'table-col': 1, 'table-header': true })
+        .insert('A1')
+        .insert('\n', { 'table-row': 1, 'table-col': 0 })
+        .insert('B1')
+        .insert('\n', { 'table-row': 1, 'table-col': 1 })
+        .insert('\n');
+      const md = deltaToMarkdown(delta, { trimTrailingNewlines: true });
+      expect(md).toBe('| - | - |\n| --- | --- |\n| A1 | B1 |');
     });
 
     it('escapes pipe characters in cell content', () => {
@@ -524,6 +535,38 @@ describe('Simple Table', () => {
       expect(tableOps[0]!.attrs['table-col-align']).toBe('left');
       expect(tableOps[1]!.attrs['table-col-align']).toBe('center');
       expect(tableOps[2]!.attrs['table-col-align']).toBe('right');
+    });
+
+    it('parses dash header placeholders as empty structural header', async () => {
+      const md = '| - | - |\n| --- | --- |\n| A1 | B1 |\n';
+      const delta = await markdownToDelta(md);
+      const tableOps = getTableOps(delta);
+      expect(tableOps.length).toBe(4);
+      expect(tableOps[0]!.attrs['table-header']).toBe(true);
+      expect(tableOps[2]!.attrs['table-header']).toBeUndefined();
+      expect(
+        delta.ops.some(
+          (op) => 'insert' in op && typeof op.insert === 'string' && op.insert === '-',
+        ),
+      ).toBe(false);
+    });
+
+    it('parses headerless table (literal empty first row)', async () => {
+      const md = '|  |  |\n| --- | --- |\n| A1 | B1 |\n';
+      const delta = await markdownToDelta(md);
+      const tableOps = getTableOps(delta);
+      expect(tableOps.length).toBe(2);
+      expect(tableOps.every((op) => !op.attrs['table-header'])).toBe(true);
+      expect(tableOps[0]!.attrs).toMatchObject({ 'table-row': 0, 'table-col': 0 });
+    });
+
+    it('keeps literal dash in body cells', async () => {
+      const md = '| - | Name |\n| --- | --- |\n| - | data |\n';
+      const delta = await markdownToDelta(md);
+      const dashOps = delta.ops.filter(
+        (op) => 'insert' in op && typeof op.insert === 'string' && op.insert === '-',
+      );
+      expect(dashOps.length).toBe(1);
     });
 
     it('parses inline formatting in GFM table cells', async () => {

@@ -3,6 +3,7 @@ import { Delta } from '@scrider/delta';
 import type { BlockContext, BlockHandler } from '../BlockHandler';
 import type { Registry } from '../Registry';
 import { normalizeDelta } from '../../conversion/sanitize';
+import { serializeHeaderCell } from '../../conversion/markdown/table-header-markdown';
 import type { DOMElement } from '../../conversion/adapters/types';
 import { isElement } from '../../conversion/adapters/types';
 
@@ -265,7 +266,7 @@ function renderGfmTable(data: TableBlockData, context: BlockContext): string {
   if (headerRows === 0) {
     const emptyParts: string[] = [];
     for (let c = 0; c < cols; c++) {
-      emptyParts.push(' ');
+      emptyParts.push('');
     }
     lines.push('| ' + emptyParts.join(' | ') + ' |');
     lines.push(renderGfmSeparator(cols, data.colAligns));
@@ -273,12 +274,14 @@ function renderGfmTable(data: TableBlockData, context: BlockContext): string {
 
   for (let r = 0; r < rows; r++) {
     const parts: string[] = [];
+    const isHeaderRow = headerRows > 0 && r < headerRows;
     for (let c = 0; c < cols; c++) {
       const cell = data.cells[`${r}:${c}`];
       let text = '';
       if (cell && context.renderDelta) {
         text = stripCellContent(context.renderDelta(cell.ops));
       }
+      if (isHeaderRow) text = serializeHeaderCell(text);
       // Escape pipe characters inside cell content
       parts.push(text.replace(/\|/g, '\\|'));
     }
