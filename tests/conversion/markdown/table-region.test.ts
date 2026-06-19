@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { Op } from '@scrider/delta';
 import {
   extractTableRegion,
+  isAdjacentSimpleTableGridBoundary,
   isTableNewlineOp,
 } from '../../../src/conversion/markdown/table-region';
 
@@ -55,6 +56,58 @@ describe('isTableNewlineOp', () => {
     expect(isTableNewlineOp({ insert: 'plain text' })).toBe(false);
     expect(isTableNewlineOp({ insert: { formula: 'x' } })).toBe(false);
     expect(isTableNewlineOp(undefined)).toBe(false);
+  });
+});
+
+describe('isAdjacentSimpleTableGridBoundary', () => {
+  it('detects row reset after multi-row table', () => {
+    expect(isAdjacentSimpleTableGridBoundary({ row: 1, col: 1 }, { row: 0, col: 0 })).toBe(true);
+    expect(isAdjacentSimpleTableGridBoundary({ row: 0, col: 1 }, { row: 1, col: 0 })).toBe(false);
+  });
+
+  it('detects col reset on row 0 between single-row tables', () => {
+    expect(isAdjacentSimpleTableGridBoundary({ row: 0, col: 1 }, { row: 0, col: 0 })).toBe(true);
+  });
+});
+
+function twoAdjacentGridOps(withSeparator: boolean): Op[] {
+  const ops: Op[] = [];
+  const cell = (text: string, row: number, col: number): void => {
+    ops.push({ insert: text });
+    ops.push({ insert: '\n', attributes: { 'table-row': row, 'table-col': col } });
+  };
+  cell('A', 0, 0);
+  cell('B', 0, 1);
+  cell('C', 1, 0);
+  cell('D', 1, 1);
+  if (withSeparator) ops.push({ insert: '\n' });
+  cell('A', 0, 0);
+  cell('B', 0, 1);
+  cell('C', 1, 0);
+  cell('D', 1, 1);
+  ops.push({ insert: '\n' });
+  return ops;
+}
+
+describe('extractTableRegion — adjacent grids', () => {
+  it('returns one grid per region when the paragraph separator was removed', () => {
+    const ops = twoAdjacentGridOps(false);
+    const first = extractTableRegion(ops, 0);
+    const second = extractTableRegion(ops, 9);
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(first!.startOpIdx).toBe(0);
+    expect(first!.endOpIdx).toBe(7);
+    expect(second!.startOpIdx).toBe(8);
+    expect(second!.endOpIdx).toBe(15);
+  });
+
+  it('still returns two regions when a plain separator remains between grids', () => {
+    const ops = twoAdjacentGridOps(true);
+    const first = extractTableRegion(ops, 0);
+    const second = extractTableRegion(ops, 10);
+    expect(first!.endOpIdx).toBe(7);
+    expect(second!.startOpIdx).toBe(9);
   });
 });
 

@@ -34,6 +34,7 @@ import {
   type TableCellAlign,
   type TablePresentation,
 } from './table-presentation';
+import { collectAdjacentTableLines } from '../markdown/table-region';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
 
@@ -174,7 +175,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       listStack = [];
       counters = [];
 
-      const tableLines = collectTableLines(lines, i);
+      const tableLines = collectAdjacentTableLines(lines, i);
       html += renderTable(tableLines, embedRenderers, pretty, blockHandlers, options);
       i += tableLines.length - 1;
       continue;
@@ -400,19 +401,6 @@ function isTableLine(line: LineContent): boolean {
     typeof line.attributes['table-row'] === 'number' &&
     typeof line.attributes['table-col'] === 'number'
   );
-}
-
-/**
- * Collect all adjacent table lines starting from the given index
- */
-function collectTableLines(lines: LineContent[], startIndex: number): LineContent[] {
-  const result: LineContent[] = [];
-  for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line || !isTableLine(line)) break;
-    result.push(line);
-  }
-  return result;
 }
 
 /**

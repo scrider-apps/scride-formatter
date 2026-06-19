@@ -55,6 +55,25 @@ function makeNoHeaderTable(): Delta {
     .insert('\n', { 'table-row': 1, 'table-col': 1 });
 }
 
+function makeTwoAdjacentGrids(withSeparator: boolean): Delta {
+  const d = new Delta();
+  const cell = (text: string, row: number, col: number): void => {
+    d.insert(text);
+    d.insert('\n', { 'table-row': row, 'table-col': col });
+  };
+  cell('A', 0, 0);
+  cell('B', 0, 1);
+  cell('C', 1, 0);
+  cell('D', 1, 1);
+  if (withSeparator) d.insert('\n');
+  cell('A', 0, 0);
+  cell('B', 0, 1);
+  cell('C', 1, 0);
+  cell('D', 1, 1);
+  d.insert('\n');
+  return d;
+}
+
 describe('Simple Table', () => {
   // ─── Delta → HTML ──────────────────────────────────────────────────────
 
@@ -760,6 +779,21 @@ describe('Simple Table', () => {
       const html = deltaToHtml(delta);
       const tableCount = (html.match(/<table>/g) || []).length;
       expect(tableCount).toBe(2);
+    });
+
+    it('renders two <table> elements when adjacent grids have no plain separator', () => {
+      const delta = makeTwoAdjacentGrids(false);
+      const html = deltaToHtml(delta);
+      expect((html.match(/<table>/g) ?? []).length).toBe(2);
+    });
+  });
+
+  describe('Delta → Markdown — adjacent grids', () => {
+    it('serialises two adjacent grids as separate pipe tables', () => {
+      const delta = makeTwoAdjacentGrids(false);
+      const md = deltaToMarkdown(delta, { trimTrailingNewlines: true });
+      const sepBlocks = md.split('\n| --- |').length - 1;
+      expect(sepBlocks).toBe(2);
     });
   });
 });

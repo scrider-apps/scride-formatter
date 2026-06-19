@@ -22,6 +22,7 @@ import {
   defaultFormats,
   extractTableRegion,
   isRemarkAvailable,
+  isAdjacentSimpleTableGridBoundary,
   isTableNewlineOp,
   preloadRemark,
   Registry,
@@ -122,6 +123,8 @@ describe('Public API exports (@scrider/formatter)', () => {
     expect(typeof extractTableRegion).toBe('function');
     expect(isTableNewlineOp).toBeDefined();
     expect(typeof isTableNewlineOp).toBe('function');
+    expect(isAdjacentSimpleTableGridBoundary).toBeDefined();
+    expect(typeof isAdjacentSimpleTableGridBoundary).toBe('function');
   });
 
   it('TableRegion type is usable', () => {

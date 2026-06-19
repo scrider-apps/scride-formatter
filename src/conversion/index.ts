@@ -98,7 +98,12 @@ export {
   isRemarkAvailable,
   preloadRemark,
   type MarkdownToDeltaOptions,
+  collectAdjacentTableLines,
   extractTableRegion,
+  isAdjacentSimpleTableGridBoundary,
   isTableNewlineOp,
+  tableCellCoordsFromAttributes,
+  tableCellCoordsFromOp,
+  type TableCellCoords,
   type TableRegion,
 } from './markdown';

@@ -10,6 +10,7 @@ import type { BlockHandlerRegistry } from '../../schema/BlockHandlerRegistry';
 import type { BlockContext } from '../../schema/BlockHandler';
 import type { Registry } from '../../schema/Registry';
 import { serializeHeaderCell } from './table-header-markdown';
+import { collectAdjacentTableLines } from './table-region';
 import {
   escapeMarkdown,
   INLINE_FORMAT_SYNTAX,
@@ -199,7 +200,7 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
 
     // Check for table - needs special handling (group adjacent table lines)
     if (typeof attrs['table-row'] === 'number' && typeof attrs['table-col'] === 'number') {
-      const tableLines = collectTableLines(lines, i);
+      const tableLines = collectAdjacentTableLines(lines, i);
       result.push(
         renderMarkdownTable(tableLines, embedRenderers, useLatexDelimiters, registry, softBreakStyle),
       );
@@ -439,25 +440,6 @@ function collectCodeBlock(lines: Line[], startIndex: number): Line[] {
   }
 
   return codeLines;
-}
-
-/**
- * Collect consecutive table lines
- */
-function collectTableLines(lines: Line[], startIndex: number): Line[] {
-  const result: Line[] = [];
-  for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i];
-    if (
-      !line ||
-      typeof line.attributes['table-row'] !== 'number' ||
-      typeof line.attributes['table-col'] !== 'number'
-    ) {
-      break;
-    }
-    result.push(line);
-  }
-  return result;
 }
 
 /**

@@ -15,5 +15,12 @@ export {
 } from './markdown-to-delta';
 export type { MarkdownToDeltaOptions, NodeHandler, ParserContext } from './markdown-to-delta';
 
-export { extractTableRegion, isTableNewlineOp } from './table-region';
-export type { TableRegion } from './table-region';
+export {
+  collectAdjacentTableLines,
+  extractTableRegion,
+  isAdjacentSimpleTableGridBoundary,
+  isTableNewlineOp,
+  tableCellCoordsFromAttributes,
+  tableCellCoordsFromOp,
+} from './table-region';
+export type { TableCellCoords, TableRegion } from './table-region';
