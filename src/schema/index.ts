@@ -14,7 +14,13 @@ export type { BlockHandler, BlockContext, BlockRenderOptions } from './BlockHand
 export { BlockHandlerRegistry } from './BlockHandlerRegistry';
 
 // Block implementations
-export type { TableBlockData, CellData, CellAlign } from './blocks/table';
+export type {
+  TableBlockData,
+  CellData,
+  CellAlign,
+  CellHorizontalAlign,
+  CellVerticalAlign,
+} from './blocks/table';
 export { tableBlockHandler } from './blocks/table';
 export type { FootnotesBlockData } from './blocks/footnotes';
 export { footnotesBlockHandler } from './blocks/footnotes';

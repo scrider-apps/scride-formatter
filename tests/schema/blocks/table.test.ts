@@ -384,6 +384,38 @@ describe('TableBlockHandler', () => {
         ),
       ).toBe(false);
     });
+
+    // ── cell align / vAlign ─────────────────────────────────
+
+    it('should accept per-cell horizontal align', () => {
+      const data = table2x2();
+      data.cells['0:0'] = { ops: [{ insert: 'A\n' }], align: 'justify' };
+      expect(tableBlockHandler.validate(data)).toBe(true);
+    });
+
+    it('should reject invalid per-cell align', () => {
+      const data = table2x2();
+      data.cells['0:0'] = {
+        ops: [{ insert: 'A\n' }],
+        align: 'middle' as unknown as 'left',
+      };
+      expect(tableBlockHandler.validate(data)).toBe(false);
+    });
+
+    it('should accept vAlign in schema (HTML round-trip in 1.8.4)', () => {
+      const data = table2x2();
+      data.cells['0:0'] = { ops: [{ insert: 'A\n' }], vAlign: 'middle' };
+      expect(tableBlockHandler.validate(data)).toBe(true);
+    });
+
+    it('should reject invalid vAlign', () => {
+      const data = table2x2();
+      data.cells['0:0'] = {
+        ops: [{ insert: 'A\n' }],
+        vAlign: 'center' as unknown as 'middle',
+      };
+      expect(tableBlockHandler.validate(data)).toBe(false);
+    });
   });
 
   describe('getNestedDeltas', () => {

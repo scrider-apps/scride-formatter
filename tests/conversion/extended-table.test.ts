@@ -185,6 +185,39 @@ describe('Extended Table: Delta → HTML', () => {
     });
   });
 
+  describe('cell align', () => {
+    it('should render per-cell align override over colAligns', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        headerRows: 1,
+        colAligns: ['center', null],
+        cells: {
+          '0:0': { ops: [{ insert: 'H\n' }] },
+          '0:1': { ops: [{ insert: 'H2\n' }] },
+          '1:0': { ops: [{ insert: 'Body\n' }], align: 'left' },
+          '1:1': { ops: [{ insert: 'B2\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('text-align: center');
+      expect(html).toContain('text-align: left');
+      expect(html).toMatch(/<td style="text-align: left">[\s\S]*Body/);
+    });
+
+    it('should render justify on a cell', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        cells: {
+          '0:0': { ops: [{ insert: 'J\n' }], align: 'justify' },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('text-align: justify');
+    });
+  });
+
   describe('rich content in cells', () => {
     it('should render bold text in cells', () => {
       const delta = tableEmbed({
@@ -491,6 +524,39 @@ describe('Extended Table: HTML → Delta', () => {
 
       expect(data).not.toBeNull();
       expect(data!.colAligns).toBeUndefined();
+    });
+  });
+
+  describe('cell align', () => {
+    it('should parse align from inner paragraph (Word path)', () => {
+      const html =
+        '<table><tr><td><p style="text-align: center">Header</p></td></tr><tr><td><p>Body</p></td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.colAligns).toEqual(['center']);
+      expect(data!.cells['1:0']?.align).toBe('left');
+    });
+
+    it('should store per-cell override when body differs from column default', () => {
+      const html =
+        '<table><thead><tr><th style="text-align: center">H</th></tr></thead><tbody><tr><td>Body</td></tr></tbody></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.colAligns).toEqual(['center']);
+      expect(data!.cells['1:0']?.align).toBe('left');
+    });
+
+    it('should parse justify on a cell', () => {
+      const html = '<table><tr><td style="text-align: justify">J</td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.cells['0:0']?.align).toBe('justify');
     });
   });
 

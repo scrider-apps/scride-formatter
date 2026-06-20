@@ -9,7 +9,7 @@ export * from '@scrider/delta';
 // Schema (Registry & Formats)
 export type { Format, FormatDefinition, FormatMatchResult, FormatRenderContext, FormatScope, EmbedIsolationOptions } from './schema';
 export type { BlockHandler, BlockContext, BlockRenderOptions } from './schema';
-export type { TableBlockData, CellData, CellAlign } from './schema';
+export type { TableBlockData, CellData, CellAlign, CellHorizontalAlign, CellVerticalAlign } from './schema';
 export type { FootnotesBlockData } from './schema';
 export type { AlertBlockData, AlertType } from './schema';
 export type { ColumnsBlockData } from './schema';

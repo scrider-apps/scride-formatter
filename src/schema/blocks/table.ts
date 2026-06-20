@@ -1,5 +1,5 @@
 import type { Op } from '@scrider/delta';
-import { Delta } from '@scrider/delta';
+import { Delta, isInsert, isTextInsert } from '@scrider/delta';
 import type { BlockContext, BlockHandler } from '../BlockHandler';
 import type { Registry } from '../Registry';
 import { normalizeDelta } from '../../conversion/sanitize';
@@ -12,9 +12,23 @@ import { isElement } from '../../conversion/adapters/types';
 // ============================================================================
 
 /**
- * Cell alignment options
+ * Column alignment options (GFM column-level subset).
  */
 export type CellAlign = 'left' | 'center' | 'right';
+
+/** Per-cell horizontal alignment (includes justify; not used in colAligns). */
+export type CellHorizontalAlign = CellAlign | 'justify';
+
+/** Per-cell vertical alignment (schema in 1.8.2; HTML round-trip in 1.8.4). */
+export type CellVerticalAlign = 'top' | 'middle' | 'bottom';
+
+const VALID_CELL_HORIZONTAL_ALIGNS: CellHorizontalAlign[] = [
+  'left',
+  'center',
+  'right',
+  'justify',
+];
+const VALID_CELL_VERTICAL_ALIGNS: CellVerticalAlign[] = ['top', 'middle', 'bottom'];
 
 /**
  * Data for a single cell in an Extended Table.
@@ -29,6 +43,10 @@ export interface CellData {
   colspan?: number;
   /** Number of rows this cell spans (default: 1) */
   rowspan?: number;
+  /** Per-cell horizontal override (default: inherit column via colAligns). */
+  align?: CellHorizontalAlign;
+  /** Per-cell vertical alignment (HTML ingest/emit in formatter 1.8.4). */
+  vAlign?: CellVerticalAlign;
 }
 
 /**
@@ -94,14 +112,27 @@ function getGridDimensions(cells: Record<string, CellData | null>): [number, num
  * Validate that a CellData has valid ops (non-empty array).
  */
 function isValidCellData(cell: CellData): boolean {
-  return (
-    typeof cell === 'object' &&
-    cell !== null &&
-    Array.isArray(cell.ops) &&
-    cell.ops.length > 0 &&
-    (cell.colspan === undefined || (Number.isInteger(cell.colspan) && cell.colspan >= 1)) &&
-    (cell.rowspan === undefined || (Number.isInteger(cell.rowspan) && cell.rowspan >= 1))
-  );
+  if (
+    typeof cell !== 'object' ||
+    cell === null ||
+    !Array.isArray(cell.ops) ||
+    cell.ops.length === 0
+  ) {
+    return false;
+  }
+  if (cell.colspan !== undefined && (!Number.isInteger(cell.colspan) || cell.colspan < 1)) {
+    return false;
+  }
+  if (cell.rowspan !== undefined && (!Number.isInteger(cell.rowspan) || cell.rowspan < 1)) {
+    return false;
+  }
+  if (cell.align !== undefined && !VALID_CELL_HORIZONTAL_ALIGNS.includes(cell.align)) {
+    return false;
+  }
+  if (cell.vAlign !== undefined && !VALID_CELL_VERTICAL_ALIGNS.includes(cell.vAlign)) {
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -156,6 +187,55 @@ function validateMergedCells(
 }
 
 // ============================================================================
+// Alignment Helpers
+// ============================================================================
+
+function parseHorizontalAlign(value: string | null | undefined): CellHorizontalAlign | null {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === 'left' || normalized === 'center' || normalized === 'right') {
+    return normalized;
+  }
+  if (normalized === 'justify') return 'justify';
+  return null;
+}
+
+function resolveCellHorizontalAlign(
+  cell: CellData,
+  col: number,
+  colAligns?: (CellAlign | null)[],
+): CellHorizontalAlign {
+  if (cell.align !== undefined) return cell.align;
+  const colAlign = colAligns?.[col];
+  if (colAlign) return colAlign;
+  return 'left';
+}
+
+function promoteAlignFromCellOps(cell: CellData): CellData {
+  if (cell.align !== undefined) return cell;
+
+  for (let i = cell.ops.length - 1; i >= 0; i--) {
+    const op = cell.ops[i];
+    if (!op || !isInsert(op) || !isTextInsert(op) || !op.insert.includes('\n')) continue;
+    const align = op.attributes?.align;
+    const parsed = typeof align === 'string' ? parseHorizontalAlign(align) : null;
+    if (!parsed) continue;
+
+    const ops = cell.ops.map((item, idx) => {
+      if (idx !== i || !isInsert(item) || item.attributes == null) return item;
+      const rest = { ...item.attributes };
+      delete rest.align;
+      return Object.keys(rest).length > 0
+        ? { insert: item.insert, attributes: rest }
+        : { insert: item.insert };
+    });
+
+    return { ...cell, ops, align: parsed };
+  }
+
+  return cell;
+}
+
+// ============================================================================
 // Rendering Helpers
 // ============================================================================
 
@@ -196,12 +276,17 @@ function renderExtendedRow(
       attrs.push(`rowspan="${cell.rowspan}"`);
     }
 
-    // Column alignment
-    if (data.colAligns) {
-      const align = data.colAligns[c];
-      if (align && align !== 'left') {
-        attrs.push(`style="text-align: ${align}"`);
-      }
+    // Horizontal alignment: per-cell override, then column default
+    const colDefault: CellHorizontalAlign = data.colAligns?.[c] ?? 'left';
+    const effectiveAlign = resolveCellHorizontalAlign(cell, c, data.colAligns);
+    let alignStyle: string | null = null;
+    if (effectiveAlign !== 'left') {
+      alignStyle = `text-align: ${effectiveAlign}`;
+    } else if (cell.align === 'left' && colDefault !== 'left') {
+      alignStyle = 'text-align: left';
+    }
+    if (alignStyle) {
+      attrs.push(`style="${alignStyle}"`);
     }
 
     const attrStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
@@ -231,6 +316,11 @@ function isGfmCompatible(data: TableBlockData): boolean {
   // colWidths → not representable in GFM
   if (data.colWidths && data.colWidths.some((w) => w > 0)) {
     return false;
+  }
+
+  // Per-cell horizontal overrides → column-level GFM cannot represent mixed columns
+  for (const cell of Object.values(data.cells)) {
+    if (cell !== null && cell.align !== undefined) return false;
   }
 
   // Check cells for colspan/rowspan
@@ -389,19 +479,35 @@ function extractColWidths(table: DOMElement): number[] | undefined {
 }
 
 /**
- * Extract text-align from a cell element's style attribute.
+ * Extract text-align from a cell element's style attribute or first block child.
  */
-function extractCellAlign(cell: DOMElement): CellAlign | null {
-  const textAlign = cell.style?.textAlign || cell.style?.getPropertyValue?.('text-align');
-  if (textAlign === 'left' || textAlign === 'center' || textAlign === 'right') {
-    return textAlign;
+function extractCellAlign(cell: DOMElement): CellHorizontalAlign | null {
+  const direct = extractInlineHorizontalAlign(cell);
+  if (direct) return direct;
+
+  const children = cell.childNodes;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!child || !isElement(child)) continue;
+    const tag = child.tagName.toLowerCase();
+    if (tag === 'p' || tag === 'div') {
+      const align = extractInlineHorizontalAlign(child);
+      if (align) return align;
+    }
   }
 
-  // Fallback: parse style string directly
-  const style = cell.getAttribute('style') || '';
-  const match = style.match(/text-align:\s*(left|center|right)/);
+  return null;
+}
+
+function extractInlineHorizontalAlign(element: DOMElement): CellHorizontalAlign | null {
+  const textAlign = element.style?.textAlign || element.style?.getPropertyValue?.('text-align');
+  const fromStyle = parseHorizontalAlign(textAlign);
+  if (fromStyle) return fromStyle;
+
+  const style = element.getAttribute('style') || '';
+  const match = style.match(/text-align:\s*(left|center|right|justify)/i);
   if (match?.[1]) {
-    return match[1] as CellAlign;
+    return parseHorizontalAlign(match[1]);
   }
 
   return null;
@@ -427,6 +533,7 @@ function parseTableElement(table: DOMElement, context: BlockContext): TableBlock
 
   const cells: Record<string, CellData | null> = {};
   const colAligns: (CellAlign | null)[] = [];
+  const rawAligns: Record<string, CellHorizontalAlign> = {};
   let maxCol = 0;
   let firstRowProcessed = false;
 
@@ -466,12 +573,23 @@ function parseTableElement(table: DOMElement, context: BlockContext): TableBlock
         ops = [{ insert: '\n' }];
       }
 
-      // Build CellData
-      const cellData: CellData = { ops };
+      // Build CellData (align applied after colAligns are known)
+      let cellData: CellData = { ops };
       if (colspan > 1) cellData.colspan = colspan;
       if (rowspan > 1) cellData.rowspan = rowspan;
+      cellData = promoteAlignFromCellOps(cellData);
 
-      cells[`${rowIdx}:${colIdx}`] = cellData;
+      const htmlAlign = extractCellAlign(cell);
+      const effectiveAlign: CellHorizontalAlign = htmlAlign ?? cellData.align ?? 'left';
+      if (cellData.align !== undefined) {
+        const withoutAlign = { ...cellData };
+        delete withoutAlign.align;
+        cellData = withoutAlign;
+      }
+
+      const cellKey = `${rowIdx}:${colIdx}`;
+      cells[cellKey] = cellData;
+      rawAligns[cellKey] = effectiveAlign;
 
       // Mark spanned positions as occupied + fill null
       for (let dr = 0; dr < rowspan; dr++) {
@@ -488,12 +606,13 @@ function parseTableElement(table: DOMElement, context: BlockContext): TableBlock
         occupied.add(`${rowIdx}:${colIdx + dc}`);
       }
 
-      // Collect column alignments from first data row
+      // Collect column alignments from first row
       if (!firstRowProcessed) {
         const align = extractCellAlign(cell);
-        // Fill for colspan
+        const colAlign: CellAlign | null =
+          align === 'center' || align === 'right' ? align : null;
         for (let dc = 0; dc < colspan; dc++) {
-          colAligns.push(align);
+          colAligns.push(colAlign);
         }
       }
 
@@ -550,6 +669,21 @@ function parseTableElement(table: DOMElement, context: BlockContext): TableBlock
     while (colAligns.length < totalCols) colAligns.push(null);
     if (colAligns.length > totalCols) colAligns.length = totalCols;
     result.colAligns = colAligns;
+  }
+
+  // Per-cell horizontal overrides when they differ from column default
+  for (let r = 0; r < totalRows; r++) {
+    for (let c = 0; c < totalCols; c++) {
+      const key = `${r}:${c}`;
+      const cell = result.cells[key];
+      if (cell == null) continue;
+
+      const colDefault: CellHorizontalAlign = result.colAligns?.[c] ?? 'left';
+      const effective = rawAligns[key] ?? 'left';
+      if (effective !== colDefault) {
+        result.cells[key] = { ...cell, align: effective };
+      }
+    }
   }
 
   return result;
@@ -716,8 +850,11 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
     for (const [key, cell] of Object.entries(data.cells)) {
       if (cell !== null) {
         const normalized = normalizeDelta(new Delta(cell.ops), registry);
-        if (normalized.ops !== cell.ops) {
-          newCells[key] = { ...cell, ops: normalized.ops };
+        const promoted = promoteAlignFromCellOps(
+          normalized.ops !== cell.ops ? { ...cell, ops: normalized.ops } : cell,
+        );
+        if (promoted.ops !== cell.ops || promoted.align !== cell.align) {
+          newCells[key] = promoted;
           changed = true;
         } else {
           newCells[key] = cell;
