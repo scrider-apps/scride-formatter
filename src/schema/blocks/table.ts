@@ -237,6 +237,54 @@ function promoteAlignFromCellOps(cell: CellData): CellData {
   return cell;
 }
 
+function parseVerticalAlign(value: string | null | undefined): CellVerticalAlign | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === 'top' || normalized === 'baseline' || normalized === 'text-top') return 'top';
+  if (normalized === 'middle' || normalized === 'center') return 'middle';
+  if (normalized === 'bottom' || normalized === 'text-bottom') return 'bottom';
+  return null;
+}
+
+function extractInlineVerticalAlign(element: DOMElement): CellVerticalAlign | null {
+  const verticalAlign = element.style?.getPropertyValue?.('vertical-align');
+  const fromStyle = parseVerticalAlign(verticalAlign);
+  if (fromStyle) return fromStyle;
+
+  const style = element.getAttribute('style') || '';
+  const match = style.match(/vertical-align:\s*(top|middle|bottom|center|baseline|text-top|text-bottom)/i);
+  if (match?.[1]) {
+    const parsed = parseVerticalAlign(match[1]);
+    if (parsed) return parsed;
+  }
+
+  const msoMatch = style.match(/mso-vertical-align:\s*(top|middle|bottom|center)/i);
+  if (msoMatch?.[1]) {
+    const parsed = parseVerticalAlign(msoMatch[1]);
+    if (parsed) return parsed;
+  }
+
+  return null;
+}
+
+function extractCellVAlign(cell: DOMElement): CellVerticalAlign | null {
+  const direct = extractInlineVerticalAlign(cell);
+  if (direct) return direct;
+
+  const children = cell.childNodes;
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (!child || !isElement(child)) continue;
+    const tag = child.tagName.toLowerCase();
+    if (tag === 'p' || tag === 'div') {
+      const vAlign = extractInlineVerticalAlign(child);
+      if (vAlign) return vAlign;
+    }
+  }
+
+  return null;
+}
+
 // ============================================================================
 // Rendering Helpers
 // ============================================================================
@@ -281,17 +329,20 @@ function renderExtendedRow(
       attrs.push(`rowspan="${cell.rowspan}"`);
     }
 
-    // Horizontal alignment: per-cell override, then column default
+    // Horizontal + vertical alignment on anchor cell
     const colDefault: CellHorizontalAlign = data.colAligns?.[c] ?? 'left';
     const effectiveAlign = resolveCellHorizontalAlign(cell, c, data.colAligns);
-    let alignStyle: string | null = null;
+    const styleParts: string[] = [];
     if (effectiveAlign !== 'left') {
-      alignStyle = `text-align: ${effectiveAlign}`;
+      styleParts.push(`text-align: ${effectiveAlign}`);
     } else if (cell.align === 'left' && colDefault !== 'left') {
-      alignStyle = 'text-align: left';
+      styleParts.push('text-align: left');
     }
-    if (alignStyle) {
-      attrs.push(`style="${alignStyle}"`);
+    if (cell.vAlign !== undefined && cell.vAlign !== 'top') {
+      styleParts.push(`vertical-align: ${cell.vAlign}`);
+    }
+    if (styleParts.length > 0) {
+      attrs.push(`style="${styleParts.join('; ')}"`);
     }
 
     const attrStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
@@ -331,6 +382,11 @@ function isGfmCompatible(data: TableBlockData): boolean {
   // Per-cell horizontal overrides → column-level GFM cannot represent mixed columns
   for (const cell of Object.values(data.cells)) {
     if (cell !== null && cell.align !== undefined) return false;
+  }
+
+  // Per-cell vertical align → not representable in GFM
+  for (const cell of Object.values(data.cells)) {
+    if (cell !== null && cell.vAlign !== undefined) return false;
   }
 
   // Check cells for colspan/rowspan
@@ -633,6 +689,11 @@ function parseTableElement(table: DOMElement, context: BlockContext): TableBlock
         const withoutAlign = { ...cellData };
         delete withoutAlign.align;
         cellData = withoutAlign;
+      }
+
+      const htmlVAlign = extractCellVAlign(cell);
+      if (htmlVAlign && htmlVAlign !== 'top') {
+        cellData = { ...cellData, vAlign: htmlVAlign };
       }
 
       const cellKey = `${rowIdx}:${colIdx}`;

@@ -416,7 +416,7 @@ describe('TableBlockHandler', () => {
       expect(tableBlockHandler.validate(data)).toBe(false);
     });
 
-    it('should accept vAlign in schema (HTML round-trip in 1.8.4)', () => {
+    it('should accept vAlign in schema', () => {
       const data = table2x2();
       data.cells['0:0'] = { ops: [{ insert: 'A\n' }], vAlign: 'middle' };
       expect(tableBlockHandler.validate(data)).toBe(true);

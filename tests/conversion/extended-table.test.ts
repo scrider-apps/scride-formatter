@@ -235,6 +235,40 @@ describe('Extended Table: Delta → HTML', () => {
     });
   });
 
+  describe('cell vAlign', () => {
+    it('should render middle and bottom vertical align on cells', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        cells: {
+          '0:0': { ops: [{ insert: 'Top\n' }] },
+          '0:1': { ops: [{ insert: 'Mid\n' }], vAlign: 'middle' },
+          '1:0': { ops: [{ insert: 'Bot\n' }], vAlign: 'bottom' },
+          '1:1': { ops: [{ insert: 'Plain\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).not.toContain('vertical-align: top');
+      expect(html).toContain('vertical-align: middle');
+      expect(html).toContain('vertical-align: bottom');
+      expect(html).toMatch(/<td[^>]*>[\s\S]*Mid/);
+    });
+
+    it('should combine horizontal and vertical align in one style attribute', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        cells: {
+          '0:0': { ops: [{ insert: 'X\n' }], align: 'center', vAlign: 'bottom' },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toMatch(
+        /<td style="text-align: center; vertical-align: bottom">[\s\S]*X/,
+      );
+    });
+  });
+
   describe('rich content in cells', () => {
     it('should render bold text in cells', () => {
       const delta = tableEmbed({
@@ -598,6 +632,55 @@ describe('Extended Table: HTML → Delta', () => {
     });
   });
 
+  describe('cell vAlign', () => {
+    it('should parse vertical-align on td', () => {
+      const html =
+        '<table><tr><td style="vertical-align: middle">M</td><td style="vertical-align: bottom">B</td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.cells['0:0']?.vAlign).toBe('middle');
+      expect(data!.cells['0:1']?.vAlign).toBe('bottom');
+    });
+
+    it('should parse Word mso-vertical-align from inner paragraph', () => {
+      const html =
+        '<table><tr><td><p style="mso-vertical-align: middle">H</p></td></tr><tr><td><p>B</p></td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.cells['0:0']?.vAlign).toBe('middle');
+      expect(data!.cells['1:0']?.vAlign).toBeUndefined();
+    });
+
+    it('should omit top as default vAlign', () => {
+      const html = '<table><tr><td style="vertical-align: top">T</td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.cells['0:0']?.vAlign).toBeUndefined();
+    });
+
+    it('should round-trip vAlign through HTML', () => {
+      const source = tableEmbed({
+        type: 'table',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }], vAlign: 'middle' },
+          '0:1': { ops: [{ insert: 'B\n' }], vAlign: 'bottom' },
+        },
+      });
+
+      const html = deltaToHtml(source, { blockHandlers });
+      const roundtripped = extractBlockData(htmlToDelta(html, { blockHandlers }));
+
+      expect(roundtripped?.cells['0:0']?.vAlign).toBe('middle');
+      expect(roundtripped?.cells['0:1']?.vAlign).toBe('bottom');
+    });
+  });
+
   describe('Simple Table fallback', () => {
     it('should parse table as Simple Table when no blockHandlers', () => {
       const html = '<table><tr><td>A</td><td>B</td></tr></table>';
@@ -918,6 +1001,23 @@ describe('Extended Table: Delta → GFM Markdown', () => {
 
     const md = deltaToMarkdown(delta, { blockHandlers });
     expect(md).toContain('<table>');
+  });
+
+  it('should fall back to HTML for table with vAlign', () => {
+    const delta = tableEmbed({
+      type: 'table',
+      headerRows: 1,
+      cells: {
+        '0:0': { ops: [{ insert: 'H\n' }] },
+        '0:1': { ops: [{ insert: 'H2\n' }] },
+        '1:0': { ops: [{ insert: 'A\n' }], vAlign: 'middle' },
+        '1:1': { ops: [{ insert: 'B\n' }] },
+      },
+    });
+
+    const md = deltaToMarkdown(delta, { blockHandlers });
+    expect(md).toContain('<table>');
+    expect(md).toContain('vertical-align: middle');
   });
 
   it('should render 3×3 GFM table correctly', () => {
