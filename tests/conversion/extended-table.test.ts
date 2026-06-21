@@ -165,6 +165,23 @@ describe('Extended Table: Delta → HTML', () => {
     });
   });
 
+  describe('rowHeights', () => {
+    it('should render tr height in px', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        rowHeights: [32, 48],
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '1:0': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('height: 32px');
+      expect(html).toContain('height: 48px');
+    });
+  });
+
   describe('colAligns', () => {
     it('should render column alignment', () => {
       const delta = tableEmbed({
@@ -503,6 +520,27 @@ describe('Extended Table: HTML → Delta', () => {
 
       expect(data).not.toBeNull();
       expect(data!.colWidths).toBeUndefined();
+    });
+  });
+
+  describe('rowHeights', () => {
+    it('should parse rowHeights from tr style', () => {
+      const html =
+        '<table><tr style="height: 36px"><td>A</td></tr><tr style="height: 52px"><td>B</td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.rowHeights).toEqual([36, 52]);
+    });
+
+    it('should not set rowHeights when tr has no explicit height', () => {
+      const html = '<table><tr><td>A</td></tr></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.rowHeights).toBeUndefined();
     });
   });
 

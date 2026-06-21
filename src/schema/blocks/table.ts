@@ -66,6 +66,8 @@ export interface TableBlockData {
   headerRows?: number;
   /** Column widths (percentages by default) */
   colWidths?: number[];
+  /** Row heights in pixels (optional; auto when absent). */
+  rowHeights?: number[];
   /** Column alignments */
   colAligns?: (CellAlign | null)[];
   /** Cells indexed by "row:col" */
@@ -253,7 +255,10 @@ function renderExtendedRow(
   const nl = pretty ? '\n' : '';
   const ind = (level: number): string => (pretty ? '  '.repeat(level) : '');
 
-  let html = `${ind(2)}<tr>${nl}`;
+  const rowHeight = data.rowHeights?.[row];
+  const trStyle =
+    rowHeight !== undefined && rowHeight > 0 ? ` style="height: ${rowHeight}px"` : '';
+  let html = `${ind(2)}<tr${trStyle}>${nl}`;
 
   for (let c = 0; c < cols; c++) {
     const key = `${row}:${c}`;
@@ -315,6 +320,11 @@ function renderExtendedRow(
 function isGfmCompatible(data: TableBlockData): boolean {
   // colWidths → not representable in GFM
   if (data.colWidths && data.colWidths.some((w) => w > 0)) {
+    return false;
+  }
+
+  // rowHeights → not representable in GFM
+  if (data.rowHeights && data.rowHeights.some((h) => h > 0)) {
     return false;
   }
 
@@ -476,6 +486,44 @@ function extractColWidths(table: DOMElement): number[] | undefined {
   }
 
   return undefined;
+}
+
+/**
+ * Extract explicit row height (px) from a `<tr>` style or height attribute.
+ */
+function extractRowHeightPx(row: DOMElement): number | null {
+  const style = row.getAttribute('style') || '';
+  const heightMatch = style.match(/(?:^|;)\s*height:\s*([\d.]+)px/i);
+  if (heightMatch?.[1]) {
+    const n = parseFloat(heightMatch[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const minHeightMatch = style.match(/(?:^|;)\s*min-height:\s*([\d.]+)px/i);
+  if (minHeightMatch?.[1]) {
+    const n = parseFloat(minHeightMatch[1]);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  const heightAttr = row.getAttribute('height');
+  if (heightAttr) {
+    const n = parseFloat(heightAttr);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function extractRowHeights(rows: DOMElement[]): number[] | undefined {
+  const heights: number[] = [];
+  let any = false;
+  for (const row of rows) {
+    const h = extractRowHeightPx(row);
+    if (h != null) {
+      heights.push(h);
+      any = true;
+    } else {
+      heights.push(0);
+    }
+  }
+  return any ? heights : undefined;
 }
 
 /**
@@ -663,6 +711,15 @@ function parseTableElement(table: DOMElement, context: BlockContext): TableBlock
     result.colWidths = colWidths;
   }
 
+  const rowHeights = extractRowHeights(rows);
+  if (rowHeights) {
+    while (rowHeights.length < totalRows) rowHeights.push(0);
+    if (rowHeights.length > totalRows) rowHeights.length = totalRows;
+    if (rowHeights.some((h) => h > 0)) {
+      result.rowHeights = rowHeights;
+    }
+  }
+
   // Add colAligns if any non-null
   if (colAligns.length > 0 && colAligns.some((a) => a !== null)) {
     // Ensure correct length
@@ -756,6 +813,16 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
       }
       for (const w of data.colWidths) {
         if (typeof w !== 'number' || w < 0) return false;
+      }
+    }
+
+    // 9b. rowHeights validation
+    if (data.rowHeights !== undefined) {
+      if (!Array.isArray(data.rowHeights) || data.rowHeights.length !== rows) {
+        return false;
+      }
+      for (const h of data.rowHeights) {
+        if (typeof h !== 'number' || h < 0) return false;
       }
     }
 

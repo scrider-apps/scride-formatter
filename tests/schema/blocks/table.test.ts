@@ -64,6 +64,10 @@ describe('TableBlockHandler', () => {
       expect(tableBlockHandler.validate(table2x2({ colWidths: [0, 100] }))).toBe(true);
     });
 
+    it('should accept table with rowHeights', () => {
+      expect(tableBlockHandler.validate(table2x2({ rowHeights: [24, 36] }))).toBe(true);
+    });
+
     it('should accept table with colAligns', () => {
       expect(tableBlockHandler.validate(table2x2({ colAligns: ['left', 'center'] }))).toBe(true);
     });
@@ -367,6 +371,16 @@ describe('TableBlockHandler', () => {
       expect(
         tableBlockHandler.validate(table2x2({ colWidths: ['50', 50] as unknown as number[] })),
       ).toBe(false);
+    });
+
+    // ── Invalid tables: rowHeights ──────────────────────────
+
+    it('should reject rowHeights with wrong length', () => {
+      expect(tableBlockHandler.validate(table2x2({ rowHeights: [20] }))).toBe(false);
+    });
+
+    it('should reject rowHeights with negative values', () => {
+      expect(tableBlockHandler.validate(table2x2({ rowHeights: [-10, 30] }))).toBe(false);
     });
 
     // ── Invalid tables: colAligns ───────────────────────────
