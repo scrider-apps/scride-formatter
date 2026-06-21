@@ -182,6 +182,40 @@ describe('Extended Table: Delta → HTML', () => {
     });
   });
 
+  describe('block width and float', () => {
+    it('should wrap table in host div with width and float', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        width: 420,
+        float: 'left',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '0:1': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('class="scrider-ext-table-host"');
+      expect(html).toContain('data-scrider-ext-table');
+      expect(html).toContain('data-float="left"');
+      expect(html).toContain('width: 420px');
+      expect(html).toContain('<table>');
+    });
+
+    it('should omit host wrapper when width and float are unset', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).not.toContain('data-scrider-ext-table');
+      expect(html).toContain('<table>');
+    });
+  });
+
   describe('colAligns', () => {
     it('should render column alignment', () => {
       const delta = tableEmbed({
@@ -575,6 +609,37 @@ describe('Extended Table: HTML → Delta', () => {
 
       expect(data).not.toBeNull();
       expect(data!.rowHeights).toBeUndefined();
+    });
+  });
+
+  describe('block width and float', () => {
+    it('should parse width and float from host wrapper', () => {
+      const html =
+        '<div class="scrider-ext-table-host" data-scrider-ext-table data-float="center" style="width: 360px; max-width: 100%">' +
+        '<table><tr><td>A</td><td>B</td></tr></table></div>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.float).toBe('center');
+      expect(data!.width).toBe(360);
+    });
+
+    it('should round-trip width and float through HTML', () => {
+      const source = tableEmbed({
+        type: 'table',
+        width: 420,
+        float: 'right',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '0:1': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+      const html = deltaToHtml(source, { blockHandlers });
+      const roundtripped = extractBlockData(htmlToDelta(html, { blockHandlers }));
+
+      expect(roundtripped?.float).toBe('right');
+      expect(roundtripped?.width).toBe(420);
     });
   });
 
@@ -1001,6 +1066,23 @@ describe('Extended Table: Delta → GFM Markdown', () => {
 
     const md = deltaToMarkdown(delta, { blockHandlers });
     expect(md).toContain('<table>');
+  });
+
+  it('should fall back to HTML for table with block width and float', () => {
+    const delta = tableEmbed({
+      type: 'table',
+      width: 420,
+      float: 'left',
+      cells: {
+        '0:0': { ops: [{ insert: 'A\n' }] },
+        '0:1': { ops: [{ insert: 'B\n' }] },
+      },
+    });
+
+    const md = deltaToMarkdown(delta, { blockHandlers });
+    expect(md).toContain('data-scrider-ext-table');
+    expect(md).toContain('data-float="left"');
+    expect(md).toContain('width: 420px');
   });
 
   it('should fall back to HTML for table with vAlign', () => {

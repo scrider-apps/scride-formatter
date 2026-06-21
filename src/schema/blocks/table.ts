@@ -6,6 +6,16 @@ import { normalizeDelta } from '../../conversion/sanitize';
 import { serializeHeaderCell } from '../../conversion/markdown/table-header-markdown';
 import type { DOMElement } from '../../conversion/adapters/types';
 import { isElement } from '../../conversion/adapters/types';
+import { escapeHtml } from '../../conversion/html/config';
+
+/** Host wrapper marker for Extended Table block HTML (editor WYSIWYG parity). */
+export const EXT_TABLE_HOST_ATTR = 'data-scrider-ext-table';
+export const EXT_TABLE_HOST_CLASS = 'scrider-ext-table-host';
+
+/** Block-level float on extended table host (4.2.10). */
+export type TableBlockFloat = 'left' | 'center' | 'right';
+
+const VALID_TABLE_BLOCK_FLOATS: TableBlockFloat[] = ['left', 'center', 'right'];
 
 // ============================================================================
 // Types
@@ -68,6 +78,10 @@ export interface TableBlockData {
   colWidths?: number[];
   /** Row heights in pixels (optional; auto when absent). */
   rowHeights?: number[];
+  /** Block-level host width in px (4.2.7). colWidths[] stay in %. */
+  width?: number;
+  /** Block-level float on host wrapper (4.2.10). */
+  float?: TableBlockFloat;
   /** Column alignments */
   colAligns?: (CellAlign | null)[];
   /** Cells indexed by "row:col" */
@@ -368,6 +382,62 @@ function renderExtendedRow(
  * Check whether an Extended Table can be losslessly represented as
  * a GFM Markdown table (no colspan, rowspan, colWidths).
  */
+function parseTableBlockFloat(value: string | null | undefined): TableBlockFloat | undefined {
+  if (value === 'left' || value === 'center' || value === 'right') return value;
+  return undefined;
+}
+
+function extractHostBlockWidthPx(host: DOMElement): number | undefined {
+  const style = host.getAttribute('style') || '';
+  const widthMatch = style.match(/(?:^|;\s*)width:\s*([\d.]+)px/i);
+  if (!widthMatch?.[1]) return undefined;
+  const n = parseFloat(widthMatch[1]);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.round(n);
+}
+
+/** Merge host wrapper attrs (float, width) into parsed block table data. */
+export function enrichTableBlockFromHost(
+  data: TableBlockData,
+  host: DOMElement,
+): TableBlockData {
+  const float = parseTableBlockFloat(host.getAttribute('data-float'));
+  const width = extractHostBlockWidthPx(host);
+  if (float == null && width == null) return data;
+
+  const next: TableBlockData = { ...data };
+  if (float != null) next.float = float;
+  if (width != null) next.width = width;
+  return next;
+}
+
+function tableNeedsHostWrapper(data: TableBlockData): boolean {
+  return (
+    (data.float != null && VALID_TABLE_BLOCK_FLOATS.includes(data.float)) ||
+    (data.width != null && data.width > 0)
+  );
+}
+
+function renderTableHostWrapperOpen(data: TableBlockData, pretty: boolean): string {
+  const nl = pretty ? '\n' : '';
+  const ind = pretty ? '  ' : '';
+  const attrs = [`class="${EXT_TABLE_HOST_CLASS}"`, EXT_TABLE_HOST_ATTR];
+  if (data.float) attrs.push(`data-float="${escapeHtml(data.float)}"`);
+
+  const styleParts: string[] = [];
+  if (data.width != null && data.width > 0) {
+    styleParts.push(`width: ${Math.round(data.width)}px`);
+    styleParts.push('max-width: 100%');
+  }
+  if (styleParts.length > 0) attrs.push(`style="${styleParts.join('; ')}"`);
+
+  return `<div ${attrs.join(' ')}>${nl}${ind}`;
+}
+
+function renderTableHostWrapperClose(pretty: boolean): string {
+  return pretty ? '</div>\n' : '</div>';
+}
+
 function isGfmCompatible(data: TableBlockData): boolean {
   // colWidths → not representable in GFM
   if (data.colWidths && data.colWidths.some((w) => w > 0)) {
@@ -376,6 +446,14 @@ function isGfmCompatible(data: TableBlockData): boolean {
 
   // rowHeights → not representable in GFM
   if (data.rowHeights && data.rowHeights.some((h) => h > 0)) {
+    return false;
+  }
+
+  if (data.width != null && data.width > 0) {
+    return false;
+  }
+
+  if (data.float != null) {
     return false;
   }
 
@@ -887,6 +965,16 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
       }
     }
 
+    // 9c. block width validation
+    if (data.width !== undefined) {
+      if (typeof data.width !== 'number' || data.width <= 0) return false;
+    }
+
+    // 9d. block float validation
+    if (data.float !== undefined && !VALID_TABLE_BLOCK_FLOATS.includes(data.float)) {
+      return false;
+    }
+
     // 10. colAligns validation
     if (data.colAligns !== undefined) {
       if (!Array.isArray(data.colAligns) || data.colAligns.length !== cols) {
@@ -952,6 +1040,10 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
     }
 
     html += `</table>`;
+
+    if (tableNeedsHostWrapper(data)) {
+      return renderTableHostWrapperOpen(data, pretty) + html + renderTableHostWrapperClose(pretty);
+    }
     return html;
   },
 

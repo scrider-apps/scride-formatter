@@ -19,6 +19,7 @@ import {
   fromVideoEmbedUrl,
 } from './config';
 import { slugify } from '../utils/slugify';
+import { enrichTableBlockFromHost, type TableBlockData } from '../../schema/blocks/table';
 
 /**
  * Options for HTML → Delta conversion
@@ -275,6 +276,10 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       }
       if (className.includes('inline-box')) {
         processBoxElement(node);
+        return;
+      }
+      if (node.hasAttribute('data-scrider-ext-table')) {
+        processExtTableHostElement(node);
         return;
       }
     }
@@ -835,33 +840,55 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
   }
 
   /**
+   * Process Extended Table host wrapper (`data-scrider-ext-table` + inner `<table>`).
+   */
+  function processExtTableHostElement(host: DOMElement): void {
+    let table: DOMElement | null = null;
+    const children = host.childNodes;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (child && isElement(child) && child.tagName.toLowerCase() === 'table') {
+        table = child;
+        break;
+      }
+    }
+    if (table && insertExtendedTableBlock(table, host)) return;
+    processDefaultBlock(host);
+  }
+
+  function makeTableBlockParseContext(): BlockContext {
+    return {
+      registry: undefined as never,
+      parseElement: (el: DOMElement): Op[] => {
+        const innerHtml = el.innerHTML ?? '';
+        if (!innerHtml) return [{ insert: '\n' }];
+        return htmlToDelta(innerHtml, options).ops;
+      },
+    };
+  }
+
+  function insertExtendedTableBlock(table: DOMElement, host: DOMElement | null): boolean {
+    const tableHandler = options.blockHandlers?.get('table');
+    if (!tableHandler) return false;
+
+    let data = tableHandler.fromHtml(table, makeTableBlockParseContext()) as TableBlockData | null;
+    if (!data) return false;
+    if (host) data = enrichTableBlockFromHost(data, host);
+
+    flushText();
+    delta.insert({ block: data });
+    delta.insert('\n');
+    atLineStart = true;
+    return true;
+  }
+
+  /**
    * Process a <table> element.
    * If blockHandlers has a 'table' handler registered, parse as Extended Table (block embed).
    * Otherwise, fall back to Simple Table (linear block attributes).
    */
   function processTableElement(table: DOMElement): void {
-    // Opt-in: Extended Table via BlockHandler
-    const tableHandler = options.blockHandlers?.get('table');
-    if (tableHandler) {
-      const blockContext: BlockContext = {
-        registry: undefined as never, // Registry not needed for fromHtml parsing
-        parseElement: (el: DOMElement): Op[] => {
-          // Recursive: parse element's inner HTML → Delta ops
-          const innerHtml = el.innerHTML ?? '';
-          if (!innerHtml) return [{ insert: '\n' }];
-          return htmlToDelta(innerHtml, options).ops;
-        },
-      };
-      const data = tableHandler.fromHtml(table, blockContext);
-      if (data) {
-        flushText();
-        delta.insert({ block: data });
-        delta.insert('\n');
-        atLineStart = true;
-        return;
-      }
-      // If fromHtml returns null, fall through to Simple Table
-    }
+    if (insertExtendedTableBlock(table, null)) return;
 
     // Simple Table: linear block attributes
     let rowIdx = 0;

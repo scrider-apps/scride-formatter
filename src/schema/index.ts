@@ -20,8 +20,14 @@ export type {
   CellAlign,
   CellHorizontalAlign,
   CellVerticalAlign,
+  TableBlockFloat,
 } from './blocks/table';
-export { tableBlockHandler } from './blocks/table';
+export {
+  tableBlockHandler,
+  enrichTableBlockFromHost,
+  EXT_TABLE_HOST_ATTR,
+  EXT_TABLE_HOST_CLASS,
+} from './blocks/table';
 export type { FootnotesBlockData } from './blocks/footnotes';
 export { footnotesBlockHandler } from './blocks/footnotes';
 export type { AlertBlockData, AlertType } from './blocks/alert';
