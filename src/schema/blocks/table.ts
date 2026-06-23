@@ -124,6 +124,24 @@ function getGridDimensions(cells: Record<string, CellData | null>): [number, num
   return [maxRow + 1, maxCol + 1];
 }
 
+/** True when a cell rowspan spans from header rows into body (invalid for split thead/tbody). */
+function rowspanCrossesHeaderBoundary(
+  cells: Record<string, CellData | null>,
+  headerRows: number,
+): boolean {
+  if (headerRows <= 0) return false;
+
+  for (const [key, cell] of Object.entries(cells)) {
+    if (cell === null) continue;
+    const parsed = parseCellKey(key);
+    if (!parsed) continue;
+    const [row] = parsed;
+    const rowspan = cell.rowspan ?? 1;
+    if (row < headerRows && row + rowspan > headerRows) return true;
+  }
+  return false;
+}
+
 /**
  * Validate that a CellData has valid ops (non-empty array).
  */
@@ -586,6 +604,32 @@ function collectTableRows(table: DOMElement): { rows: DOMElement[]; headerRowCou
   return { rows, headerRowCount };
 }
 
+/** When thead is omitted (e.g. rowspan crosses header boundary), infer from leading all-`<th>` rows. */
+function inferHeaderRowsFromThPrefix(rows: DOMElement[]): number {
+  let count = 0;
+
+  for (const row of rows) {
+    let hasCell = false;
+    let allTh = true;
+
+    const cellChildren = row.childNodes;
+    for (let i = 0; i < cellChildren.length; i++) {
+      const cell = cellChildren[i];
+      if (!cell || !isElement(cell)) continue;
+      const tag = cell.tagName.toLowerCase();
+      if (tag !== 'td' && tag !== 'th') continue;
+      hasCell = true;
+      if (tag !== 'th') allTh = false;
+    }
+
+    if (!hasCell) continue;
+    if (!allTh) break;
+    count++;
+  }
+
+  return count;
+}
+
 /**
  * Extract colWidths from `<colgroup>` → `<col>` elements.
  * Returns an array of widths or undefined if no `<colgroup>`.
@@ -710,7 +754,13 @@ function extractInlineHorizontalAlign(element: DOMElement): CellHorizontalAlign 
  * 6. Return `{ type: 'table', headerRows, colWidths, colAligns, cells }`
  */
 function parseTableElement(table: DOMElement, context: BlockContext): TableBlockData | null {
-  const { rows, headerRowCount } = collectTableRows(table);
+  const collected = collectTableRows(table);
+  const { rows } = collected;
+  let headerRowCount = collected.headerRowCount;
+  if (headerRowCount === 0) {
+    const inferred = inferHeaderRowsFromThPrefix(rows);
+    if (inferred > 0) headerRowCount = inferred;
+  }
   if (rows.length === 0) return null;
 
   const cells: Record<string, CellData | null> = {};
@@ -1020,8 +1070,12 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
       html += `${ind(1)}</colgroup>${nl}`;
     }
 
-    // Render <thead> if headerRows > 0
-    if (headerRows > 0) {
+    // Split thead/tbody only when no rowspan crosses the header boundary —
+    // browsers do not extend rowspan from thead into tbody reliably.
+    const splitHeaderSection =
+      headerRows > 0 && !rowspanCrossesHeaderBoundary(data.cells, headerRows);
+
+    if (splitHeaderSection) {
       html += `${ind(1)}<thead>${nl}`;
       for (let r = 0; r < headerRows; r++) {
         html += renderExtendedRow(data, r, cols, 'th', context, pretty);
@@ -1029,8 +1083,7 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
       html += `${ind(1)}</thead>${nl}`;
     }
 
-    // Render <tbody>
-    const bodyStart = headerRows;
+    const bodyStart = splitHeaderSection ? headerRows : 0;
     if (bodyStart < rows) {
       html += `${ind(1)}<tbody>${nl}`;
       for (let r = bodyStart; r < rows; r++) {

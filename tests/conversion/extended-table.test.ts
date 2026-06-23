@@ -13,6 +13,16 @@ function tableEmbed(data: TableBlockData): Delta {
   return new Delta([{ insert: { block: data } }]);
 }
 
+/** Extract the block embed data from a Delta */
+function extractBlockData(delta: Delta): TableBlockData | null {
+  for (const op of delta.ops) {
+    if ('insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
+      return (op.insert as { block: TableBlockData }).block;
+    }
+  }
+  return null;
+}
+
 describe('Extended Table: Delta → HTML', () => {
   const blockHandlers = createDefaultBlockHandlers();
 
@@ -144,6 +154,61 @@ describe('Extended Table: Delta → HTML', () => {
       // Only 1 cell rendered
       const tdCount = (html.match(/<td[> ]/g) ?? []).length;
       expect(tdCount).toBe(1);
+    });
+
+    it('should render header rowspan into body in a single tbody (no thead split)', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        headerRows: 1,
+        cells: {
+          '0:0': { ops: [{ insert: '\n' }], rowspan: 3 },
+          '0:1': { ops: [{ insert: '\n' }] },
+          '0:2': { ops: [{ insert: '\n' }] },
+          '1:0': null,
+          '1:1': { ops: [{ insert: '\n' }] },
+          '1:2': { ops: [{ insert: '\n' }] },
+          '2:0': null,
+          '2:1': { ops: [{ insert: '\n' }] },
+          '2:2': { ops: [{ insert: '\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('rowspan="3"');
+      expect(html).not.toContain('<thead>');
+      expect(html).toContain('<tbody>');
+      const thCount = (html.match(/<th[> ]/g) ?? []).length;
+      const tdCount = (html.match(/<td[> ]/g) ?? []).length;
+      expect(thCount).toBe(3);
+      expect(tdCount).toBe(4);
+    });
+
+    it('should roundtrip header rowspan spanning body rows', () => {
+      const source = tableEmbed({
+        type: 'table',
+        headerRows: 1,
+        cells: {
+          '0:0': { ops: [{ insert: 'Side\n' }], rowspan: 3 },
+          '0:1': { ops: [{ insert: 'H2\n' }] },
+          '0:2': { ops: [{ insert: 'H3\n' }] },
+          '1:0': null,
+          '1:1': { ops: [{ insert: 'B1\n' }] },
+          '1:2': { ops: [{ insert: 'B2\n' }] },
+          '2:0': null,
+          '2:1': { ops: [{ insert: 'C1\n' }] },
+          '2:2': { ops: [{ insert: 'C2\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(source, { blockHandlers });
+      const restored = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(restored);
+
+      expect(data).not.toBeNull();
+      expect(data!.headerRows).toBe(1);
+      expect(data!.cells['0:0']!.rowspan).toBe(3);
+      expect(data!.cells['1:0']).toBeNull();
+      expect(data!.cells['2:0']).toBeNull();
     });
   });
 
@@ -444,16 +509,6 @@ describe('Extended Table: Delta → HTML', () => {
 describe('Extended Table: HTML → Delta', () => {
   const blockHandlers = createDefaultBlockHandlers();
 
-  /** Extract the block embed data from a Delta */
-  function extractBlockData(delta: Delta): TableBlockData | null {
-    for (const op of delta.ops) {
-      if ('insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
-        return (op.insert).block as TableBlockData;
-      }
-    }
-    return null;
-  }
-
   describe('basic parsing', () => {
     it('should parse a simple 2×2 table', () => {
       const html =
@@ -524,6 +579,18 @@ describe('Extended Table: HTML → Delta', () => {
 
       expect(data).not.toBeNull();
       expect(data!.headerRows).toBeUndefined();
+    });
+
+    it('should infer headerRows from th-only rows in tbody when thead is omitted', () => {
+      const html =
+        '<table><tbody><tr><th rowspan="3"></th><th></th><th></th></tr><tr><td></td><td></td></tr><tr><td></td><td></td></tr></tbody></table>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.headerRows).toBe(1);
+      expect(data!.cells['0:0']!.rowspan).toBe(3);
+      expect(data!.cells['1:0']).toBeNull();
     });
   });
 
@@ -775,16 +842,6 @@ describe('Extended Table: HTML → Delta', () => {
 
 describe('Extended Table: Roundtrip', () => {
   const blockHandlers = createDefaultBlockHandlers();
-
-  /** Extract block data from Delta for comparison */
-  function extractBlockData(delta: Delta): TableBlockData | null {
-    for (const op of delta.ops) {
-      if ('insert' in op && typeof op.insert === 'object' && op.insert !== null && 'block' in op.insert) {
-        return (op.insert).block as TableBlockData;
-      }
-    }
-    return null;
-  }
 
   it('should roundtrip a simple 2×2 table', () => {
     const original: TableBlockData = {
