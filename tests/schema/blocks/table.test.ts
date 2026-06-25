@@ -72,6 +72,13 @@ describe('TableBlockHandler', () => {
       expect(tableBlockHandler.validate(table2x2({ width: 420, float: 'center' }))).toBe(true);
     });
 
+    it('should accept table with blockAlign', () => {
+      expect(tableBlockHandler.validate(table2x2({ blockAlign: 'center', width: 360 }))).toBe(
+        true,
+      );
+      expect(tableBlockHandler.validate(table2x2({ blockAlign: 'justify' }))).toBe(true);
+    });
+
     it('should accept table with colAligns', () => {
       expect(tableBlockHandler.validate(table2x2({ colAligns: ['left', 'center'] }))).toBe(true);
     });
@@ -395,6 +402,14 @@ describe('TableBlockHandler', () => {
       expect(
         tableBlockHandler.validate(
           table2x2({ float: 'none' as unknown as 'left' }),
+        ),
+      ).toBe(false);
+    });
+
+    it('should reject invalid blockAlign', () => {
+      expect(
+        tableBlockHandler.validate(
+          table2x2({ blockAlign: 'stretch' as unknown as 'left' }),
         ),
       ).toBe(false);
     });

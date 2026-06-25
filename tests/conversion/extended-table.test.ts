@@ -279,6 +279,38 @@ describe('Extended Table: Delta → HTML', () => {
       expect(html).not.toContain('data-scrider-ext-table');
       expect(html).toContain('<table>');
     });
+
+    it('should wrap table in host div with blockAlign justify', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        blockAlign: 'justify',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '0:1': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('data-scrider-ext-table');
+      expect(html).toContain('data-block-align="justify"');
+      expect(html).toContain('width: 100%');
+    });
+
+    it('should wrap table in host div with blockAlign and width', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        width: 360,
+        blockAlign: 'center',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('data-block-align="center"');
+      expect(html).toContain('width: 360px');
+      expect(html).not.toContain('data-float');
+    });
   });
 
   describe('colAligns', () => {
@@ -707,6 +739,35 @@ describe('Extended Table: HTML → Delta', () => {
 
       expect(roundtripped?.float).toBe('right');
       expect(roundtripped?.width).toBe(420);
+    });
+
+    it('should parse blockAlign from host wrapper', () => {
+      const html =
+        '<div class="scrider-ext-table-host" data-scrider-ext-table data-block-align="center" style="width: 360px; max-width: 100%">' +
+        '<table><tr><td>A</td><td>B</td></tr></table></div>';
+      const delta = htmlToDelta(html, { blockHandlers });
+      const data = extractBlockData(delta);
+
+      expect(data).not.toBeNull();
+      expect(data!.blockAlign).toBe('center');
+      expect(data!.width).toBe(360);
+      expect(data!.float).toBeUndefined();
+    });
+
+    it('should round-trip blockAlign justify through HTML', () => {
+      const source = tableEmbed({
+        type: 'table',
+        blockAlign: 'justify',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '0:1': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+      const html = deltaToHtml(source, { blockHandlers });
+      const roundtripped = extractBlockData(htmlToDelta(html, { blockHandlers }));
+
+      expect(roundtripped?.blockAlign).toBe('justify');
+      expect(roundtripped?.width).toBeUndefined();
     });
   });
 
@@ -1140,6 +1201,21 @@ describe('Extended Table: Delta → GFM Markdown', () => {
     expect(md).toContain('data-scrider-ext-table');
     expect(md).toContain('data-float="left"');
     expect(md).toContain('width: 420px');
+  });
+
+  it('should fall back to HTML for table with blockAlign', () => {
+    const delta = tableEmbed({
+      type: 'table',
+      blockAlign: 'justify',
+      cells: {
+        '0:0': { ops: [{ insert: 'A\n' }] },
+        '0:1': { ops: [{ insert: 'B\n' }] },
+      },
+    });
+
+    const md = deltaToMarkdown(delta, { blockHandlers });
+    expect(md).toContain('data-scrider-ext-table');
+    expect(md).toContain('data-block-align="justify"');
   });
 
   it('should fall back to HTML for table with vAlign', () => {

@@ -15,7 +15,11 @@ export const EXT_TABLE_HOST_CLASS = 'scrider-ext-table-host';
 /** Block-level float on extended table host (4.2.10). */
 export type TableBlockFloat = 'left' | 'center' | 'right';
 
+/** Block position when width is narrower than the line (margin-based, no float). */
+export type TableBlockAlign = 'left' | 'center' | 'right' | 'justify';
+
 const VALID_TABLE_BLOCK_FLOATS: TableBlockFloat[] = ['left', 'center', 'right'];
+const VALID_TABLE_BLOCK_ALIGNS: TableBlockAlign[] = ['left', 'center', 'right', 'justify'];
 
 // ============================================================================
 // Types
@@ -82,6 +86,8 @@ export interface TableBlockData {
   width?: number;
   /** Block-level float on host wrapper (4.2.10). */
   float?: TableBlockFloat;
+  /** Block position when width is set (margin-based, no float). */
+  blockAlign?: TableBlockAlign;
   /** Column alignments */
   colAligns?: (CellAlign | null)[];
   /** Cells indexed by "row:col" */
@@ -405,6 +411,13 @@ function parseTableBlockFloat(value: string | null | undefined): TableBlockFloat
   return undefined;
 }
 
+function parseTableBlockAlign(value: string | null | undefined): TableBlockAlign | undefined {
+  if (value === 'left' || value === 'center' || value === 'right' || value === 'justify') {
+    return value;
+  }
+  return undefined;
+}
+
 function extractHostBlockWidthPx(host: DOMElement): number | undefined {
   const style = host.getAttribute('style') || '';
   const widthMatch = style.match(/(?:^|;\s*)width:\s*([\d.]+)px/i);
@@ -414,17 +427,19 @@ function extractHostBlockWidthPx(host: DOMElement): number | undefined {
   return Math.round(n);
 }
 
-/** Merge host wrapper attrs (float, width) into parsed block table data. */
+/** Merge host wrapper attrs (float, blockAlign, width) into parsed block table data. */
 export function enrichTableBlockFromHost(
   data: TableBlockData,
   host: DOMElement,
 ): TableBlockData {
   const float = parseTableBlockFloat(host.getAttribute('data-float'));
+  const blockAlign = parseTableBlockAlign(host.getAttribute('data-block-align'));
   const width = extractHostBlockWidthPx(host);
-  if (float == null && width == null) return data;
+  if (float == null && blockAlign == null && width == null) return data;
 
   const next: TableBlockData = { ...data };
   if (float != null) next.float = float;
+  if (blockAlign != null && float == null) next.blockAlign = blockAlign;
   if (width != null) next.width = width;
   return next;
 }
@@ -432,7 +447,10 @@ export function enrichTableBlockFromHost(
 function tableNeedsHostWrapper(data: TableBlockData): boolean {
   return (
     (data.float != null && VALID_TABLE_BLOCK_FLOATS.includes(data.float)) ||
-    (data.width != null && data.width > 0)
+    (data.width != null && data.width > 0) ||
+    (data.float == null &&
+      data.blockAlign != null &&
+      VALID_TABLE_BLOCK_ALIGNS.includes(data.blockAlign))
   );
 }
 
@@ -441,11 +459,16 @@ function renderTableHostWrapperOpen(data: TableBlockData, pretty: boolean): stri
   const ind = pretty ? '  ' : '';
   const attrs = [`class="${EXT_TABLE_HOST_CLASS}"`, EXT_TABLE_HOST_ATTR];
   if (data.float) attrs.push(`data-float="${escapeHtml(data.float)}"`);
+  if (data.blockAlign && !data.float) {
+    attrs.push(`data-block-align="${escapeHtml(data.blockAlign)}"`);
+  }
 
   const styleParts: string[] = [];
   if (data.width != null && data.width > 0) {
     styleParts.push(`width: ${Math.round(data.width)}px`);
     styleParts.push('max-width: 100%');
+  } else if (data.blockAlign === 'justify' && !data.float) {
+    styleParts.push('width: 100%');
   }
   if (styleParts.length > 0) attrs.push(`style="${styleParts.join('; ')}"`);
 
@@ -472,6 +495,10 @@ function isGfmCompatible(data: TableBlockData): boolean {
   }
 
   if (data.float != null) {
+    return false;
+  }
+
+  if (data.blockAlign != null) {
     return false;
   }
 
@@ -1022,6 +1049,11 @@ export const tableBlockHandler: BlockHandler<TableBlockData> = {
 
     // 9d. block float validation
     if (data.float !== undefined && !VALID_TABLE_BLOCK_FLOATS.includes(data.float)) {
+      return false;
+    }
+
+    // 9e. block align validation
+    if (data.blockAlign !== undefined && !VALID_TABLE_BLOCK_ALIGNS.includes(data.blockAlign)) {
       return false;
     }
 
