@@ -311,6 +311,39 @@ describe('Extended Table: Delta → HTML', () => {
       expect(html).toContain('width: 360px');
       expect(html).not.toContain('data-float');
     });
+
+    it('should wrap table in host div with blockAlign center at full line width', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        blockAlign: 'center',
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '0:1': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('data-block-align="center"');
+      expect(html).toContain('width: 100%');
+      expect(html).not.toContain('360px');
+    });
+
+    it('should render justify at full line width when user width is stored for round-trip', () => {
+      const delta = tableEmbed({
+        type: 'table',
+        blockAlign: 'justify',
+        width: 560,
+        cells: {
+          '0:0': { ops: [{ insert: 'A\n' }] },
+          '0:1': { ops: [{ insert: 'B\n' }] },
+        },
+      });
+
+      const html = deltaToHtml(delta, { blockHandlers });
+      expect(html).toContain('data-block-align="justify"');
+      expect(html).toContain('width: 100%');
+      expect(html).not.toContain('560px');
+    });
   });
 
   describe('colAligns', () => {

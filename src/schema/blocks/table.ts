@@ -464,10 +464,12 @@ function renderTableHostWrapperOpen(data: TableBlockData, pretty: boolean): stri
   }
 
   const styleParts: string[] = [];
-  if (data.width != null && data.width > 0) {
+  if (data.blockAlign === 'justify' && !data.float) {
+    styleParts.push('width: 100%');
+  } else if (data.width != null && data.width > 0) {
     styleParts.push(`width: ${Math.round(data.width)}px`);
     styleParts.push('max-width: 100%');
-  } else if (data.blockAlign === 'justify' && !data.float) {
+  } else if (data.blockAlign && !data.float) {
     styleParts.push('width: 100%');
   }
   if (styleParts.length > 0) attrs.push(`style="${styleParts.join('; ')}"`);
