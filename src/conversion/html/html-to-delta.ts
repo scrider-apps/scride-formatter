@@ -235,7 +235,24 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
         if (format.match) {
           const result = format.match(node);
           if (result != null) {
+            // Block-level embeds (e.g. `divider` → `<hr>`) must sit on their
+            // own line. If pending inline text hasn't been terminated by a
+            // block close (common with pasted table/chat HTML where `<hr>`
+            // follows text without a clean `</p>`), terminate it first so the
+            // embed doesn't glue onto the preceding paragraph's line. Without
+            // this the leading `\n` is dropped on every HTML→Delta round-trip,
+            // shortening the reconciled Delta and drifting the caret for
+            // everything after the divider.
+            if (format.blockLevel && !atLineStart) {
+              context.pushNewline();
+            }
             context.pushEmbed({ [format.name]: result.value }, result.attributes);
+            // Block-level embeds also own their paragraph-terminating `\n`.
+            // Mirrors the hardcoded `<hr>` handler below (dead once a registry
+            // with the divider format is supplied, which the editor always does).
+            if (format.blockLevel) {
+              context.pushNewline();
+            }
             return;
           }
         }
@@ -254,6 +271,11 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     }
 
     if (tagName === 'hr') {
+      // A divider must start its own line — terminate any un-closed preceding
+      // block first (see the registry branch above for the round-trip rationale).
+      if (!atLineStart) {
+        context.pushNewline();
+      }
       context.pushEmbed({ divider: true });
       context.pushNewline();
       return;

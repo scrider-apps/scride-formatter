@@ -13,6 +13,7 @@ import type { DOMElement } from '../../../conversion/adapters/types';
 export const dividerFormat: Format<boolean> = {
   name: 'divider',
   scope: 'embed',
+  blockLevel: true,
 
   normalize(value: boolean): boolean {
     return !!value;

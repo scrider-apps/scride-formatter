@@ -65,6 +65,22 @@ export interface Format<T = unknown> {
   readonly scope: FormatScope;
 
   /**
+   * Block-level marker for `embed` formats.
+   *
+   * A block-level embed (e.g. `divider` → `<hr>`) stands on its own line: in
+   * Delta it is the `{embed}` op followed by its own paragraph-terminating
+   * `\n`, and in HTML it is NOT wrapped in a `<p>`. Inline embeds (image,
+   * formula, softBreak…) live inside a paragraph and rely on the surrounding
+   * block's `\n`, so they leave this unset.
+   *
+   * `htmlToDelta` uses this to emit the block `\n` after matching a block-level
+   * embed via the registry (otherwise the following content glues onto the
+   * embed's line — see the `<hr>` round-trip regression). Ignored for
+   * non-embed scopes.
+   */
+  readonly blockLevel?: boolean;
+
+  /**
    * Normalize value to canonical form
    *
    * Examples:

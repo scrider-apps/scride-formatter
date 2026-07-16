@@ -19,6 +19,7 @@ export {
 } from './table-presentation';
 export {
   resolveDocumentPresentation,
+  documentMetadataToPresentation,
   documentPresentationStyleParts,
   blockPresentationStyleParts,
   type ResolvedDocumentPresentation,

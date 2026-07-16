@@ -48,6 +48,7 @@ export {
   isZebraBodyRow,
   type ResolvedTablePresentation,
   resolveDocumentPresentation,
+  documentMetadataToPresentation,
   documentPresentationStyleParts,
   blockPresentationStyleParts,
   SCRIDER_LINE_HEIGHT_KEY,

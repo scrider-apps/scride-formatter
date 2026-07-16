@@ -4,6 +4,9 @@ node_modules/
 # Build
 dist/
 
+# npm pack artifacts (local link / override tarballs)
+*.tgz
+
 # IDE
 .idea/
 .vscode/

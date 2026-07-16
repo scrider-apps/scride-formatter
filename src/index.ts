@@ -7,6 +7,7 @@
 export * from '@scrider/delta';
 
 // Schema (Registry & Formats)
+export type { ScriderDocumentMetadata } from './schema';
 export type { Format, FormatDefinition, FormatMatchResult, FormatRenderContext, FormatScope, EmbedIsolationOptions } from './schema';
 export type { BlockHandler, BlockContext, BlockRenderOptions } from './schema';
 export type { TableBlockData, CellData, CellAlign, CellHorizontalAlign, CellVerticalAlign, TableBlockFloat } from './schema';
@@ -104,6 +105,7 @@ export {
   deltaToHtml,
   resolveTablePresentation,
   resolveDocumentPresentation,
+  documentMetadataToPresentation,
   documentPresentationStyleParts,
   blockPresentationStyleParts,
   SCRIDER_LINE_HEIGHT_KEY,

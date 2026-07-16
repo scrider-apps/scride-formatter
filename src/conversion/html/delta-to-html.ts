@@ -22,11 +22,13 @@ import {
 import { slugifyWithDedup } from '../utils/slugify';
 import {
   blockPresentationStyleParts,
+  documentMetadataToPresentation,
   documentPresentationListWrapperStyleParts,
   joinStyleParts,
   resolveDocumentPresentation,
   type DocumentPresentation,
 } from './document-presentation';
+import type { ScriderDocumentMetadata } from '../../schema/document-metadata';
 import {
   buildTableCellStyleAttr,
   resolveTablePresentation,
@@ -114,6 +116,16 @@ export interface DeltaToHtmlOptions {
   documentPresentation?: DocumentPresentation;
 
   /**
+   * Document-level metadata (Scrider format extension, `scrider-metadata`).
+   *
+   * When {@link documentPresentation} is not provided, the presentation-relevant
+   * fields of this metadata are projected to inline CSS via
+   * `documentMetadataToPresentation` (export/clipboard). An explicit
+   * `documentPresentation` always takes precedence. Does not change Delta.
+   */
+  documentMetadata?: ScriderDocumentMetadata;
+
+  /**
    * Cross-origin iframe isolation for embed formats (codeWidget, video iframe).
    * Default: both off — standard third-party iframes load with browser cookies.
    * Enable when the host page is cross-origin-isolated (COOP + COEP).
@@ -154,7 +166,9 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
   const hierarchicalNumbers = options.hierarchicalNumbers ?? false;
   const blockHandlers = options.blockHandlers;
   const anchorLinks = options.anchorLinks ?? false;
-  const resolvedDocumentPresentation = resolveDocumentPresentation(options.documentPresentation);
+  const resolvedDocumentPresentation = resolveDocumentPresentation(
+    options.documentPresentation ?? documentMetadataToPresentation(options.documentMetadata),
+  );
 
   let html = '';
   let listStack: { type: string; indent: number }[] = [];

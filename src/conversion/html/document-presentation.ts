@@ -8,6 +8,8 @@
 
 import type { AttributeMap } from '@scrider/delta';
 
+import type { ScriderDocumentMetadata } from '../../schema/document-metadata';
+
 import {
   blockLineHeightStyleParts,
   blockParagraphMarginStyleParts,
@@ -82,6 +84,41 @@ export function resolveDocumentPresentation(
     textIndentCm,
     listBlockIndentCm,
   };
+}
+
+/**
+ * Project {@link ScriderDocumentMetadata} onto an HTML {@link DocumentPresentation}
+ * (export / clipboard inline CSS).
+ *
+ * Only presentation-relevant fields are mapped (line/paragraph spacing, indent).
+ * Heading policy (align/bold/size grid) and fonts are applied by upstream layers
+ * (CSS vars in the editor, bake into block/inline attrs) and are deliberately not
+ * part of the inline projection. Returns `undefined` when nothing maps, so callers
+ * can fall back cleanly.
+ */
+export function documentMetadataToPresentation(
+  metadata: ScriderDocumentMetadata | undefined,
+): DocumentPresentation | undefined {
+  if (!metadata) return undefined;
+
+  const presentation: DocumentPresentation = {};
+  if (typeof metadata.lineSpacing === 'number') {
+    presentation.lineSpacing = metadata.lineSpacing;
+  }
+  if (typeof metadata.paragraphSpacingBeforeEm === 'number') {
+    presentation.paragraphSpacingBeforeEm = metadata.paragraphSpacingBeforeEm;
+  }
+  if (typeof metadata.paragraphSpacingAfterEm === 'number') {
+    presentation.paragraphSpacingAfterEm = metadata.paragraphSpacingAfterEm;
+  }
+  if (typeof metadata.textIndentCm === 'number') {
+    presentation.textIndentCm = metadata.textIndentCm;
+  }
+  if (typeof metadata.listBlockIndentCm === 'number') {
+    presentation.listBlockIndentCm = metadata.listBlockIndentCm;
+  }
+
+  return Object.keys(presentation).length > 0 ? presentation : undefined;
 }
 
 /** Block tags that receive document first-line indent. */

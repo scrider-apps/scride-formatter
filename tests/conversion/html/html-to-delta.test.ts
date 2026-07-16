@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { InsertOp } from '@scrider/delta';
+import { Delta } from '@scrider/delta';
 import { htmlToDelta } from '../../../src/conversion/html/html-to-delta';
+import { deltaToHtml } from '../../../src/conversion/html/delta-to-html';
+import { createDefaultRegistry } from '../../../src/schema/defaults';
 
 describe('htmlToDelta', () => {
   describe('basic text', () => {
@@ -559,6 +562,87 @@ describe('htmlToDelta', () => {
       expect(delta.ops).toEqual([
         { insert: 'Bold Italic', attributes: { bold: true, italic: true } },
         { insert: '\n\n' },
+      ]);
+    });
+  });
+
+  describe('block-level embed (<hr> / divider) with registry', () => {
+    // Regression: when a registry carrying the `divider` embed format is
+    // supplied (the editor always does), the registry match path used to push
+    // `{ divider }` WITHOUT its block-terminating `\n`, so the following block
+    // glued onto the divider line. Every HTML→Delta round-trip then dropped one
+    // `\n` per divider, shortening the reconciled Delta and drifting the caret
+    // for everything after it. The block-level embed must own its `\n`.
+
+    it('divider matched via registry keeps its block \\n (no glue)', () => {
+      const delta = htmlToDelta('<p>A</p><hr><p>B</p>', {
+        registry: createDefaultRegistry(),
+      });
+      expect(delta.ops).toEqual([
+        { insert: 'A\n' },
+        { insert: { divider: true } },
+        { insert: '\nB\n' },
+      ]);
+    });
+
+    it('empty paragraph after divider survives the round-trip', () => {
+      const delta = htmlToDelta('<p>A</p><p><br></p><hr><p><br></p><p>B</p>', {
+        registry: createDefaultRegistry(),
+      });
+      expect(delta.ops).toEqual([
+        { insert: 'A\n\n' },
+        { insert: { divider: true } },
+        { insert: '\n\nB\n' },
+      ]);
+    });
+
+    it('divider → HTML → Delta round-trip is symmetric', () => {
+      const registry = createDefaultRegistry();
+      const original = new Delta()
+        .insert('before')
+        .insert('\n\n')
+        .insert({ divider: true })
+        .insert('\n\n')
+        .insert('after\n');
+      const html = deltaToHtml(original, { registry });
+      const restored = htmlToDelta(html, { registry });
+      expect(restored.ops).toEqual(original.ops);
+    });
+
+    // Regression (live caret drift): pasted table/chat HTML puts `<hr>` after
+    // inline text that was never terminated by a clean `</p>`. The divider used
+    // to glue onto the preceding paragraph line (`text{divider}` with no leading
+    // `\n`), leaving the Delta one `\n` shorter than the rendered DOM (`<p>text
+    // </p><hr><p></p>`) → +N caret drift accumulating down the document. The
+    // block-level embed must start its own line even without a preceding block.
+    it('divider glued to preceding inline text gets a leading block \\n (registry)', () => {
+      const delta = htmlToDelta('<div>text<hr>heading</div>', {
+        registry: createDefaultRegistry(),
+      });
+      expect(delta.ops).toEqual([
+        { insert: 'text\n' },
+        { insert: { divider: true } },
+        { insert: '\nheading\n' },
+      ]);
+    });
+
+    it('divider glued to preceding inline text gets a leading block \\n (hardcoded)', () => {
+      const delta = htmlToDelta('<div>text<hr>heading</div>');
+      expect(delta.ops).toEqual([
+        { insert: 'text\n' },
+        { insert: { divider: true } },
+        { insert: '\nheading\n' },
+      ]);
+    });
+
+    it('divider already at line start does not get a doubled leading \\n', () => {
+      const delta = htmlToDelta('<p>A</p><hr>B', {
+        registry: createDefaultRegistry(),
+      });
+      expect(delta.ops).toEqual([
+        { insert: 'A\n' },
+        { insert: { divider: true } },
+        { insert: '\nB\n' },
       ]);
     });
   });

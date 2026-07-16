@@ -1,4 +1,5 @@
 // Core types and classes
+export type { ScriderDocumentMetadata } from './document-metadata';
 export type {
   EmbedIsolationOptions,
   Format,
