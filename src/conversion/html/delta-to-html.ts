@@ -323,6 +323,61 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
 }
 
 /**
+ * Rendering profile: how a Delta is turned into markup.
+ *
+ * - `export`: full fidelity for clipboard / Office / HTML export. Document-level
+ *   presentation (line/paragraph spacing, first-line/list indent) and table
+ *   presentation are projected to inline CSS so the markup is self-contained.
+ * - `editor`: markup for the editor's contenteditable surface. Document-level
+ *   presentation and table presentation are intentionally dropped — the editor
+ *   applies them live via CSS custom properties on the container, so inline
+ *   copies would double-apply and fight the Settings panel. Per-block baked
+ *   attributes (`scrider-line-height`, `scrider-margin-*`, `scrider-text-indent`)
+ *   still render, since they are part of the document content.
+ */
+export type RenderProfile = 'export' | 'editor';
+
+/**
+ * Strip document/table presentation for the `editor` profile — those are applied
+ * live via CSS vars on the editor container, not inline.
+ */
+function stripPresentationForEditor(options: DeltaToHtmlOptions): DeltaToHtmlOptions {
+  const rest: DeltaToHtmlOptions = { ...options };
+  delete rest.documentPresentation;
+  delete rest.documentMetadata;
+  delete rest.tablePresentation;
+  return rest;
+}
+
+/**
+ * Render a Delta with an explicit {@link RenderProfile}.
+ *
+ * Thin dispatcher over {@link deltaToHtml} (the export core). See
+ * {@link RenderProfile} for how the profiles differ.
+ */
+export function renderDelta(
+  delta: Delta,
+  profile: RenderProfile,
+  options: DeltaToHtmlOptions = {},
+): string {
+  return profile === 'editor'
+    ? deltaToHtml(delta, stripPresentationForEditor(options))
+    : deltaToHtml(delta, options);
+}
+
+/**
+ * Render a Delta for the editor's contenteditable surface (`editor` profile).
+ *
+ * Equivalent to `renderDelta(delta, 'editor', options)`. Document-level and table
+ * presentation are dropped (applied live via CSS vars); the built-in `softBreak`
+ * renderer already emits `<br data-scrider-embed>`, so the editor needs no
+ * embed-renderer override.
+ */
+export function deltaToDom(delta: Delta, options: DeltaToHtmlOptions = {}): string {
+  return renderDelta(delta, 'editor', options);
+}
+
+/**
  * Get indentation string for pretty printing
  */
 function getIndent(level: number): string {

@@ -13,6 +13,7 @@ import type { ScriderDocumentMetadata } from '../../schema/document-metadata';
 import {
   blockLineHeightStyleParts,
   blockParagraphMarginStyleParts,
+  blockTextIndentStyleParts,
   LINE_HEIGHT_BLOCK_TAGS,
 } from './block-presentation';
 
@@ -132,7 +133,14 @@ export function documentPresentationListWrapperStyleParts(
   return [`padding-left:1.25em`, `margin-left:${resolved.listBlockIndentCm}cm`];
 }
 
-/** Document-level styles only (line-height merged via {@link blockLineHeightStyleParts}). */
+/**
+ * Document-level first-line indent only (no per-block attr).
+ *
+ * @deprecated Superseded by {@link blockTextIndentStyleParts}, which resolves the
+ * per-block `scrider-text-indent` attr with the document default as fallback and
+ * is what {@link blockPresentationStyleParts} now uses. Kept exported for
+ * backward compatibility; output is unchanged for document-only callers.
+ */
 export function documentPresentationStyleParts(
   tag: string,
   resolved: ResolvedDocumentPresentation | undefined,
@@ -150,6 +158,10 @@ export function documentPresentationStyleParts(
 
 /**
  * All block presentation styles for deltaToHtml: Delta attrs, then document defaults.
+ *
+ * First-line indent now resolves per-block: baked `scrider-text-indent` wins over
+ * the document `textIndentCm` default (previously the per-block attr was dropped
+ * on export). Output for document-only paragraphs is unchanged.
  */
 export function blockPresentationStyleParts(
   tag: string,
@@ -159,7 +171,7 @@ export function blockPresentationStyleParts(
   return [
     ...blockLineHeightStyleParts(tag, blockAttributes, resolved),
     ...blockParagraphMarginStyleParts(tag, blockAttributes, resolved),
-    ...documentPresentationStyleParts(tag, resolved),
+    ...blockTextIndentStyleParts(tag, blockAttributes, resolved),
   ];
 }
 

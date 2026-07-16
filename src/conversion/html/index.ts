@@ -6,6 +6,9 @@
 
 export {
   deltaToHtml,
+  deltaToDom,
+  renderDelta,
+  type RenderProfile,
   type DeltaToHtmlOptions,
   type EmbedIsolationOptions,
   type TableCellAlign,
@@ -24,6 +27,11 @@ export {
   blockPresentationStyleParts,
   type ResolvedDocumentPresentation,
 } from './document-presentation';
+export {
+  SCRIDER_TEXT_INDENT_KEY,
+  TEXT_INDENT_BLOCK_TAGS,
+  blockTextIndentStyleParts,
+} from './block-presentation';
 export {
   SCRIDER_LINE_HEIGHT_KEY,
   SCRIDER_MARGIN_AFTER_KEY,

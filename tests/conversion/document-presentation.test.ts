@@ -118,6 +118,46 @@ describe('deltaToHtml documentPresentation', () => {
 
   });
 
+  it('emits per-block scrider-text-indent on export (baked, e.g. Word paste)', () => {
+
+    const delta = new Delta()
+      .insert('Indented')
+      .insert('\n', { 'scrider-text-indent': '1.25cm' });
+
+    const html = deltaToHtml(delta);
+
+    expect(html).toMatch(/<p[^>]*text-indent:1\.25cm[^>]*>Indented<\/p>/);
+
+  });
+
+  it('per-block scrider-text-indent overrides document textIndentCm; siblings fall back', () => {
+
+    const delta = new Delta()
+      .insert('A')
+      .insert('\n', { 'scrider-text-indent': '2cm' })
+      .insert('B')
+      .insert('\n');
+
+    const html = deltaToHtml(delta, { documentPresentation: { textIndentCm: 1.25 } });
+
+    expect(html).toMatch(/<p[^>]*text-indent:2cm[^>]*>A<\/p>/);
+
+    expect(html).toMatch(/<p[^>]*text-indent:1\.25cm[^>]*>B<\/p>/);
+
+  });
+
+  it('does not emit per-block scrider-text-indent on list items', () => {
+
+    const delta = new Delta()
+      .insert('Item')
+      .insert('\n', { list: 'bullet', 'scrider-text-indent': '1cm' });
+
+    const html = deltaToHtml(delta);
+
+    expect(html).not.toMatch(/<li[^>]*text-indent/);
+
+  });
+
 
 
   it('adds margin-bottom after paragraphs from paragraphSpacingAfterEm', () => {

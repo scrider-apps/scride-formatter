@@ -39,6 +39,9 @@ export {
 // HTML Conversion
 export {
   deltaToHtml,
+  deltaToDom,
+  renderDelta,
+  type RenderProfile,
   type DeltaToHtmlOptions,
   type EmbedIsolationOptions,
   type TableCellAlign,
@@ -54,7 +57,9 @@ export {
   SCRIDER_LINE_HEIGHT_KEY,
   SCRIDER_MARGIN_AFTER_KEY,
   SCRIDER_MARGIN_BEFORE_KEY,
+  SCRIDER_TEXT_INDENT_KEY,
   LINE_HEIGHT_BLOCK_TAGS,
+  TEXT_INDENT_BLOCK_TAGS,
   PARAGRAPH_SPACING_BLOCK_TAGS,
   parseScriderLineHeightMultiplier,
   parseScriderMarginEm,
@@ -64,6 +69,7 @@ export {
   blockParagraphMarginStyleParts,
   blockMarginAfterStyleParts,
   blockMarginBeforeStyleParts,
+  blockTextIndentStyleParts,
   type ResolvedDocumentPresentation,
   htmlToDelta,
   type HtmlToDeltaOptions,

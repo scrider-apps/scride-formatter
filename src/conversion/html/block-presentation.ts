@@ -11,8 +11,14 @@ export const SCRIDER_MARGIN_AFTER_KEY = 'scrider-margin-after';
 /** Space before plain paragraph (`margin-top`) on `\n` (Settings Apply). */
 export const SCRIDER_MARGIN_BEFORE_KEY = 'scrider-margin-before';
 
+/** Per-paragraph first-line indent stored on `\n` (Word paste, Settings Apply). */
+export const SCRIDER_TEXT_INDENT_KEY = 'scrider-text-indent';
+
 /** Block tags that receive line spacing (not headings). */
 export const LINE_HEIGHT_BLOCK_TAGS = new Set(['p', 'li', 'blockquote']);
+
+/** Block tags that receive first-line indent (plain `<p>` only). */
+export const TEXT_INDENT_BLOCK_TAGS = new Set(['p']);
 
 /** Block tags that receive paragraph spacing after (plain `<p>` only). */
 export const PARAGRAPH_SPACING_BLOCK_TAGS = new Set(['p']);
@@ -59,6 +65,33 @@ export function blockLineHeightStyleParts(
 
   if (resolved?.lineSpacing !== undefined) {
     return lineHeightStyleParts(resolved.lineSpacing);
+  }
+
+  return [];
+}
+
+/**
+ * First-line indent for a plain `<p>`: `scrider-text-indent` on the line (baked,
+ * e.g. Word paste) → documentPresentation `textIndentCm` → none.
+ *
+ * The block attr wins over the document default (mirrors line-height / margin
+ * resolution). The raw block value is a CSS length string (e.g. `1.25cm`).
+ */
+export function blockTextIndentStyleParts(
+  tag: string,
+  blockAttributes: AttributeMap | undefined,
+  resolved: ResolvedDocumentPresentation | undefined,
+): string[] {
+  if (!TEXT_INDENT_BLOCK_TAGS.has(tag)) return [];
+
+  const raw = blockAttributes?.[SCRIDER_TEXT_INDENT_KEY];
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed) return [`text-indent:${trimmed}`];
+  }
+
+  if (resolved?.textIndentCm !== undefined) {
+    return [`text-indent:${resolved.textIndentCm}cm`];
   }
 
   return [];
