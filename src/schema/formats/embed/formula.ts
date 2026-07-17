@@ -68,7 +68,9 @@ export const formulaFormat: Format<string> = {
 
   render(value: string): string {
     const latex = typeof value === 'string' ? value : '';
-    return `<span class="formula" data-formula="${escapeHtml(latex)}">${escapeHtml(latex)}</span>`;
+    // `data-scrider-embed`: DomBridge counts this as 1 Δchar before KaTeX
+    // replaces the text body (see DEFAULT_EMBED_RENDERERS.formula comment).
+    return `<span class="formula" data-formula="${escapeHtml(latex)}" data-scrider-embed>${escapeHtml(latex)}</span>`;
   },
 
   match(element: DOMElement): FormatMatchResult<string> | null {

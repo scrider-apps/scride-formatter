@@ -479,7 +479,7 @@ describe('deltaToHtml', () => {
       const delta = new Delta().insert({ formula: 'E = mc^2' }).insert('\n');
 
       expect(deltaToHtml(delta)).toBe(
-        '<p><span class="formula" data-formula="E = mc^2">E = mc^2</span></p>',
+        '<p><span class="formula" data-formula="E = mc^2" data-scrider-embed>E = mc^2</span></p>',
       );
     });
 

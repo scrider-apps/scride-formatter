@@ -161,9 +161,13 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${renderEmbedIframeIsolationAttrs(context, 'codeWidget')}${float}${style}></iframe>`;
   },
 
+  // `data-scrider-embed` marks this span as 1 Delta char for DomBridge before
+  // KaTeX post-render replaces the text body with a `.katex` subtree. Without
+  // the marker, DomBridge counts the raw LaTeX length and drifts indices for
+  // everything after the formula (e.g. Simple Table chrome probe fails).
   formula: (value) => {
     const latex = typeof value === 'string' ? value : '';
-    return `<span class="formula" data-formula="${escapeHtml(latex)}">${escapeHtml(latex)}</span>`;
+    return `<span class="formula" data-formula="${escapeHtml(latex)}" data-scrider-embed>${escapeHtml(latex)}</span>`;
   },
 
   diagram: (value) => {

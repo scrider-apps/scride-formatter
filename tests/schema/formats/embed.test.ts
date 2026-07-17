@@ -295,7 +295,9 @@ describe('Embed Formats', () => {
   describe('formulaFormat.render', () => {
     it('should render formula span', () => {
       const html = formulaFormat.render!('E = mc^2');
-      expect(html).toBe('<span class="formula" data-formula="E = mc^2">E = mc^2</span>');
+      expect(html).toBe(
+        '<span class="formula" data-formula="E = mc^2" data-scrider-embed>E = mc^2</span>',
+      );
     });
 
     it('should escape HTML in formula', () => {
@@ -306,7 +308,9 @@ describe('Embed Formats', () => {
 
   describe('formulaFormat.match', () => {
     it('should match <span class="formula">', () => {
-      const el = parseElement('<span class="formula" data-formula="E = mc^2">E = mc^2</span>');
+      const el = parseElement(
+        '<span class="formula" data-formula="E = mc^2" data-scrider-embed>E = mc^2</span>',
+      );
       const result = formulaFormat.match!(el);
       expect(result).toEqual({ value: 'E = mc^2' });
     });
