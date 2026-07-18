@@ -28,6 +28,11 @@ import {
   resolveDocumentPresentation,
   type DocumentPresentation,
 } from './document-presentation';
+import {
+  headingPolicyStyleParts,
+  resolveHeadingPolicy,
+  type ResolvedHeadingPolicy,
+} from './heading-presentation';
 import type { ScriderDocumentMetadata } from '../../schema/document-metadata';
 import {
   buildTableCellStyleAttr,
@@ -39,6 +44,8 @@ import {
 import { collectAdjacentTableLines } from '../markdown/table-region';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
+export type { ResolvedHeadingPolicy };
+export { resolveHeadingPolicy, headingPolicyStyleParts, HEADER_SIZE_PRESETS } from './heading-presentation';
 
 export type { EmbedIsolationOptions };
 
@@ -118,10 +125,12 @@ export interface DeltaToHtmlOptions {
   /**
    * Document-level metadata (Scrider format extension, `scrider-metadata`).
    *
-   * When {@link documentPresentation} is not provided, the presentation-relevant
-   * fields of this metadata are projected to inline CSS via
-   * `documentMetadataToPresentation` (export/clipboard). An explicit
-   * `documentPresentation` always takes precedence. Does not change Delta.
+   * When {@link documentPresentation} is not provided, spacing/indent fields are
+   * projected via `documentMetadataToPresentation`. Heading policy
+   * (`headingAlign` / `headingBold` / `headingSizeGridPreset` / `headingAuto`)
+   * is projected onto `h1`–`h6`. When {@link tablePresentation} is omitted,
+   * `metadata.tablePresentation` is used. An explicit `documentPresentation` /
+   * `tablePresentation` always takes precedence. Does not change Delta.
    */
   documentMetadata?: ScriderDocumentMetadata;
 
@@ -169,6 +178,16 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
   const resolvedDocumentPresentation = resolveDocumentPresentation(
     options.documentPresentation ?? documentMetadataToPresentation(options.documentMetadata),
   );
+  const resolvedHeadingPolicy = resolveHeadingPolicy(options.documentMetadata);
+  /** Explicit `tablePresentation` wins; else persistable metadata field. */
+  const effectiveTablePresentation =
+    options.tablePresentation ?? options.documentMetadata?.tablePresentation;
+  const optionsWithTable: DeltaToHtmlOptions = {
+    ...options,
+    ...(effectiveTablePresentation !== undefined
+      ? { tablePresentation: effectiveTablePresentation }
+      : {}),
+  };
 
   let html = '';
   let listStack: { type: string; indent: number }[] = [];
@@ -190,7 +209,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       counters = [];
 
       const tableLines = collectAdjacentTableLines(lines, i);
-      html += renderTable(tableLines, embedRenderers, pretty, blockHandlers, options);
+      html += renderTable(tableLines, embedRenderers, pretty, blockHandlers, optionsWithTable);
       i += tableLines.length - 1;
       continue;
     }
@@ -307,6 +326,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
         pretty,
         headingId,
         resolvedDocumentPresentation,
+        resolvedHeadingPolicy,
       );
     }
   }
@@ -890,9 +910,15 @@ function renderBlock(
   pretty?: boolean,
   id?: string,
   resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
+  resolvedHeadingPolicy?: ResolvedHeadingPolicy,
 ): string {
   const idAttr = id ? ` id="${escapeHtml(id)}"` : '';
-  const styleAttr = getBlockStyleAttribute(tag, attributes, resolvedDocumentPresentation);
+  const styleAttr = getBlockStyleAttribute(
+    tag,
+    attributes,
+    resolvedDocumentPresentation,
+    resolvedHeadingPolicy,
+  );
   // Use <br> for empty paragraphs so they have height in browser
   const innerContent = content || '<br>';
   const html = `<${tag}${idAttr}${styleAttr}>${innerContent}</${tag}>`;
@@ -906,12 +932,12 @@ function getBlockStyleAttribute(
   tag: string,
   attributes: AttributeMap | undefined,
   resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
+  resolvedHeadingPolicy?: ResolvedHeadingPolicy,
 ): string {
-  const styles: string[] = blockPresentationStyleParts(
-    tag,
-    attributes,
-    resolvedDocumentPresentation,
-  );
+  const styles: string[] = [
+    ...blockPresentationStyleParts(tag, attributes, resolvedDocumentPresentation),
+    ...headingPolicyStyleParts(tag, attributes, resolvedHeadingPolicy),
+  ];
 
   if (attributes) {
     const alignVal = attributes.align;

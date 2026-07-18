@@ -31,14 +31,16 @@ describe('documentMetadataToPresentation', () => {
     });
   });
 
-  it('ignores non-presentation fields (heading policy, fonts)', () => {
+  it('ignores heading/font/table fields (projected on other paths)', () => {
     const metadata: ScriderDocumentMetadata = {
       lineSpacing: 2,
       headingAlign: 'center',
       headingBold: true,
-      headingSizeGridPreset: 'compact',
+      headingSizeGridPreset: 'scrider',
+      headingAuto: true,
       defaultFont: 'Georgia',
       defaultFontSize: '12pt',
+      tablePresentation: { grid: true },
     };
 
     expect(documentMetadataToPresentation(metadata)).toEqual({ lineSpacing: 2 });
@@ -102,7 +104,7 @@ describe('deltaToHtml documentMetadata', () => {
     expect(html).not.toMatch(/line-height:1\.5/);
   });
 
-  it('is a no-op when metadata has no presentation fields', () => {
+  it('is a no-op on paragraphs when metadata has only heading/font fields', () => {
     const withMeta = deltaToHtml(paragraphs(), {
       documentMetadata: { headingAlign: 'center', defaultFont: 'Georgia' },
     });
@@ -118,5 +120,61 @@ describe('deltaToHtml documentMetadata', () => {
 
     expect(html).toMatch(/<h2[^>]*>/);
     expect(html).not.toMatch(/<h2[^>]*line-height/);
+  });
+
+  it('projects headingAlign / headingBold / size-grid onto h1–h6', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 1 });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: {
+        headingAlign: 'center',
+        headingBold: true,
+        headingSizeGridPreset: 'scrider',
+      },
+    });
+
+    expect(html).toMatch(/<h1[^>]*text-align: center/);
+    expect(html).toMatch(/<h1[^>]*font-weight: bold/);
+    expect(html).toMatch(/<h1[^>]*font-size: 32pt/);
+  });
+
+  it('baked align on heading wins over metadata headingAlign', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 2, align: 'right' });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: { headingAlign: 'center' },
+    });
+
+    expect(html).toMatch(/text-align: right/);
+    expect(html).not.toMatch(/text-align: center/);
+  });
+
+  it('headingAuto skips size-grid font-size', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 1 });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: {
+        headingAuto: true,
+        headingSizeGridPreset: 'scrider',
+        headingBold: true,
+      },
+    });
+
+    expect(html).toMatch(/font-weight: bold/);
+    expect(html).not.toMatch(/font-size:/);
+  });
+
+  it('uses metadata.tablePresentation when tablePresentation option is omitted', () => {
+    const delta = new Delta()
+      .insert('A')
+      .insert('\n', { 'table-row': 0, 'table-col': 0, 'table-header': true })
+      .insert('B')
+      .insert('\n', { 'table-row': 1, 'table-col': 0 });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: { tablePresentation: { grid: true, borderColor: '#abc123' } },
+    });
+
+    expect(html).toMatch(/border[^"]*#abc123|#abc123/);
   });
 });

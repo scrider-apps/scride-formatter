@@ -89,13 +89,12 @@ export function resolveDocumentPresentation(
 
 /**
  * Project {@link ScriderDocumentMetadata} onto an HTML {@link DocumentPresentation}
- * (export / clipboard inline CSS).
+ * (export / clipboard inline CSS for paragraphs/lists).
  *
- * Only presentation-relevant fields are mapped (line/paragraph spacing, indent).
- * Heading policy (align/bold/size grid) and fonts are applied by upstream layers
- * (CSS vars in the editor, bake into block/inline attrs) and are deliberately not
- * part of the inline projection. Returns `undefined` when nothing maps, so callers
- * can fall back cleanly.
+ * Maps line/paragraph spacing and indent only. Heading policy is projected
+ * separately via {@link resolveHeadingPolicy} / {@link headingPolicyStyleParts}
+ * onto `h1`–`h6`. `tablePresentation` is read from metadata in `deltaToHtml`
+ * when the explicit option is omitted. Returns `undefined` when nothing maps.
  */
 export function documentMetadataToPresentation(
   metadata: ScriderDocumentMetadata | undefined,

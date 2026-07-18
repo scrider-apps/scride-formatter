@@ -3,8 +3,8 @@
  *
  * Concrete schema for the opaque `scrider-metadata` sibling field defined in
  * `@scrider/delta` (`ScriderDocument`). It carries document-wide defaults ONCE
- * (line spacing, paragraph spacing, indent, heading policy, fonts) instead of
- * duplicating them as block attributes on every `\n`.
+ * (line spacing, paragraph spacing, indent, heading policy, fonts, table
+ * presentation) instead of duplicating them as block attributes on every `\n`.
  *
  * Layering:
  * - `@scrider/delta` treats the value as opaque `Record<string, unknown>` — it
@@ -14,11 +14,17 @@
  *   export projection).
  *
  * All fields are optional and additive: extending the interface never changes the
- * op-stream and is backward compatible. Presentation-relevant fields are projected
- * to HTML via {@link documentMetadataToPresentation}; heading/font policy is applied
- * by upstream layers (CSS vars, bake) and is intentionally NOT part of the inline
- * export projection.
+ * op-stream and is backward compatible.
+ *
+ * Projection:
+ * - Spacing / indent → {@link documentMetadataToPresentation} (paragraph CSS).
+ * - Heading policy → {@link resolveHeadingPolicy} / heading block styles on `h1`–`h6`.
+ * - `tablePresentation` → same shape as `DeltaToHtmlOptions.tablePresentation`
+ *   (used when the explicit option is omitted).
  */
+
+import type { TablePresentation } from '../conversion/html/table-presentation';
+
 export interface ScriderDocumentMetadata {
   /** Line spacing multiplier, e.g. `1.5`. */
   lineSpacing?: number;
@@ -30,14 +36,33 @@ export interface ScriderDocumentMetadata {
   textIndentCm?: number;
   /** Extra left indent in cm on top-level `<ul>`/`<ol>` (shifts marker + text). */
   listBlockIndentCm?: number;
-  /** Document heading horizontal alignment policy. */
+  /** Document heading horizontal alignment policy. Presence = policy on. */
   headingAlign?: 'left' | 'center' | 'right';
-  /** Document heading bold policy. */
+  /** Document heading bold policy. `true` = force bold on `h1`–`h6`. */
   headingBold?: boolean;
-  /** Named heading size-grid preset id (schema defined upstream). */
+  /**
+   * Named heading size-grid preset id (`scrider` | `google` | `word` | `browser` | `githubEm`).
+   * Ignored when {@link headingAuto} is true.
+   */
   headingSizeGridPreset?: string;
+  /**
+   * When true, headings use browser/CSS natural size (no size-grid projection).
+   * Mutually exclusive with {@link headingSizeGridPreset} in Settings UI.
+   */
+  headingAuto?: boolean;
+  /**
+   * Heading decoration preset (`none` | `scrider` | `github`).
+   * Editor: `data-scrider-heading-decoration`. Export: PDF/HTML vertical rhythm + rules.
+   */
+  headingDecoration?: 'none' | 'scrider' | 'github';
   /** Default document font family (bare family name, e.g. `Georgia`). */
   defaultFont?: string;
   /** Default document font size as a CSS length, e.g. `12pt`. */
   defaultFontSize?: string;
+  /**
+   * Simple / view table chrome (borders, header shade, zebra). Same shape as
+   * `DeltaToHtmlOptions.tablePresentation`. Persisted with the document so export
+   * matches Settings without a separate channel.
+   */
+  tablePresentation?: TablePresentation;
 }

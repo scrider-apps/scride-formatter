@@ -28,6 +28,13 @@ export {
   type ResolvedDocumentPresentation,
 } from './document-presentation';
 export {
+  resolveHeadingPolicy,
+  headingPolicyStyleParts,
+  HEADER_SIZE_PRESETS,
+  type ResolvedHeadingPolicy,
+  type HeaderSizePresetName,
+} from './heading-presentation';
+export {
   SCRIDER_TEXT_INDENT_KEY,
   TEXT_INDENT_BLOCK_TAGS,
   blockTextIndentStyleParts,
