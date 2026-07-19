@@ -1,6 +1,7 @@
 // Core types and classes
 export type { ScriderDocumentMetadata } from './document-metadata';
 export type {
+  CodeWidgetEmbedUrlFn,
   EmbedIsolationOptions,
   Format,
   FormatDefinition,

@@ -22,8 +22,9 @@ import {
   renderLink,
   renderCodeBlock,
 } from './config';
-import { escapeHtml, toVideoEmbedUrl, toCodeWidgetEmbedUrl } from '../html/config';
+import { escapeHtml, toVideoEmbedUrl } from '../html/config';
 import { deltaToHtml } from '../html/delta-to-html';
+import type { CodeWidgetEmbedUrlFn } from '../../schema/Format';
 
 /**
  * Options for Delta → Markdown conversion
@@ -111,6 +112,12 @@ export interface DeltaToMarkdownOptions {
   registry?: Registry;
 
   /**
+   * Share→embed URL transform for attributed `{ codeWidget }` HTML fallback
+   * (arch-set1 D2). Default: passthrough.
+   */
+  codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn;
+
+  /**
    * Rendering style for `{ softBreak: true }` embeds (Phase 7 Part 0).
    *
    * - `'spaces'` (default): GFM-canonical hard break — two trailing spaces
@@ -178,6 +185,7 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     registry,
     softBreakStyle = 'spaces',
     trimTrailingNewlines = false,
+    codeWidgetEmbedUrl,
   } = options;
   const useLatexDelimiters = mathSyntax === 'latex';
 
@@ -231,6 +239,8 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
             false,
             registry,
             softBreakStyle,
+            false,
+            codeWidgetEmbedUrl,
           ),
         )
         .join('\n');
@@ -296,6 +306,8 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
       prettyHtml,
       registry,
       softBreakStyle,
+      false,
+      codeWidgetEmbedUrl,
     );
 
     // Handle empty lines
@@ -650,6 +662,7 @@ function renderLineContent(
   registry?: Registry,
   softBreakStyle: 'spaces' | 'html' = 'spaces',
   inTableCell: boolean = false,
+  codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn,
 ): string {
   let result = '';
 
@@ -676,6 +689,7 @@ function renderLineContent(
         registry,
         softBreakStyle,
         inTableCell,
+        codeWidgetEmbedUrl,
       );
     }
   }
@@ -741,6 +755,7 @@ function renderEmbed(
   registry?: Registry,
   softBreakStyle: 'spaces' | 'html' = 'spaces',
   inTableCell: boolean = false,
+  codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn,
 ): string {
   const entries = Object.entries(embed);
   if (entries.length === 0) return '';
@@ -813,7 +828,11 @@ function renderEmbed(
       }
       // Fallback to render() as HTML-in-Markdown
       if (format.render) {
-        return format.render(embedValue, attributes);
+        return format.render(
+          embedValue,
+          attributes,
+          codeWidgetEmbedUrl != null ? { codeWidgetEmbedUrl } : undefined,
+        );
       }
     }
   }
@@ -913,7 +932,7 @@ function renderEmbed(
         if (h && h !== 'auto') styles.push(`height: ${/^\d+$/.test(h) ? h + 'px' : h}`);
       }
       const styleAttr = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
-      const embedSrc = toCodeWidgetEmbedUrl(src);
+      const embedSrc = codeWidgetEmbedUrl ? codeWidgetEmbedUrl(src) : src;
       return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${floatAttr}${styleAttr}></iframe>`;
     }
 

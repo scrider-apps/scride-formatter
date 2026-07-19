@@ -9,7 +9,11 @@ import type { Op, AttributeMap } from '@scrider/delta';
 import type { BlockHandlerRegistry } from '../../schema/BlockHandlerRegistry';
 import type { BlockContext } from '../../schema/BlockHandler';
 import type { Registry } from '../../schema/Registry';
-import type { EmbedIsolationOptions, FormatRenderContext } from '../../schema/Format';
+import type {
+  CodeWidgetEmbedUrlFn,
+  EmbedIsolationOptions,
+  FormatRenderContext,
+} from '../../schema/Format';
 import {
   INLINE_FORMAT_ORDER,
   INLINE_FORMAT_TAGS,
@@ -140,6 +144,13 @@ export interface DeltaToHtmlOptions {
    * Enable when the host page is cross-origin-isolated (COOP + COEP).
    */
   embed?: EmbedIsolationOptions;
+
+  /**
+   * Share→embed URL transform for `{ codeWidget }` iframes (arch-set1 D2).
+   * Default: passthrough (stored URL unchanged). Provider rules belong in the
+   * host — inject e.g. `@scrider/editor-react`'s `toCodeWidgetEmbedUrl`.
+   */
+  codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn;
 }
 
 /**
@@ -1079,7 +1090,12 @@ function renderEmbed(
 
   const embedValue: unknown = value[embedType];
 
-  const embedContext: FormatRenderContext = options?.embed != null ? { embed: options.embed } : {};
+  const embedContext: FormatRenderContext = {
+    ...(options?.embed != null ? { embed: options.embed } : {}),
+    ...(options?.codeWidgetEmbedUrl != null
+      ? { codeWidgetEmbedUrl: options.codeWidgetEmbedUrl }
+      : {}),
+  };
 
   // Check registry format render() first
   const registry = options?.registry;

@@ -4,7 +4,7 @@ import type { AttributeMap } from '@scrider/delta';
 import {
   escapeHtml,
   renderEmbedIframeIsolationAttrs,
-  toCodeWidgetEmbedUrl,
+  resolveCodeWidgetEmbedSrc,
 } from '../../../conversion/html/config';
 /**
  * Code Widget embed format (Phase 8 Part 3.5)
@@ -29,9 +29,9 @@ import {
  * embeds can boot SharedArrayBuffer when the host is cross-origin-isolated.
  * `credentialless` keeps the frame loadable under COEP on such a host.
  *
- * The src is run through `toCodeWidgetEmbedUrl` at render time, which is
- * idempotent, so resize/float attributes and the Delta ↔ HTML round-trip stay
- * stable regardless of whether the stored value is the user URL or embed URL.
+ * Share→embed URL rules are **not** in the formatter (arch-set1 D2). Inject
+ * `deltaToHtml({ codeWidgetEmbedUrl })` / `FormatRenderContext.codeWidgetEmbedUrl`
+ * from the host; default is passthrough of the stored URL.
  */
 export const codeWidgetFormat: Format<string> = {
   name: 'codeWidget',
@@ -86,7 +86,7 @@ export const codeWidgetFormat: Format<string> = {
       if (h && h !== 'auto') styles.push(`height: ${/^\d+$/.test(h) ? h + 'px' : h}`);
     }
     const style = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
-    const embedSrc = toCodeWidgetEmbedUrl(src);
+    const embedSrc = resolveCodeWidgetEmbedSrc(src, context);
     return `<iframe data-code-widget src="${escapeHtml(embedSrc)}" frameborder="0" allowfullscreen${renderEmbedIframeIsolationAttrs(context, 'codeWidget')}${float}${style}></iframe>`;
   },
 

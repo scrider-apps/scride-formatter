@@ -26,10 +26,21 @@ export interface EmbedIsolationOptions {
 }
 
 /**
+ * Host-provided share→embed URL transform for `{ codeWidget }` (arch-set1 D2).
+ * When omitted, the stored URL is used as-is (passthrough).
+ */
+export type CodeWidgetEmbedUrlFn = (url: string) => string;
+
+/**
  * Optional context passed to Format.render() during conversion.
  */
 export interface FormatRenderContext {
   embed?: EmbedIsolationOptions;
+  /**
+   * Optional share→embed URL transform for codeWidget iframes.
+   * Integration policy lives in the host (editor/demo), not the formatter.
+   */
+  codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn;
 }
 
 /**

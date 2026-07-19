@@ -1,11 +1,11 @@
 /**
- * Code Widget embed tests (Phase 8 Part 3.5)
+ * Code Widget embed tests (Phase 8 Part 3.5 / arch-set1 D2)
  *
  * Covers:
- *  - toCodeWidgetEmbedUrl: provider URL → embed URL + idempotency
+ *  - Default passthrough (no provider rules in formatter)
+ *  - Injectable `codeWidgetEmbedUrl` share→embed transform
  *  - Delta → HTML: <iframe data-code-widget …> render + float/width/height
  *  - HTML → Delta: data-code-widget routes to codeWidget (not video)
- *  - Disambiguation: a plain video iframe stays video
  *  - Roundtrip Delta → HTML → Delta
  *  - Markdown: ![Widget](url) ↔ { codeWidget } and attributed HTML fallback
  */
@@ -43,97 +43,30 @@ function embedValue(op: { insert: unknown }, key: string): unknown {
   return (op.insert as Record<string, unknown>)[key];
 }
 
+/** Minimal host transform used only to prove the inject hook (not full provider set). */
+function stubCodeWidgetEmbedUrl(url: string): string {
+  if (/codesandbox\.io\/s\//i.test(url)) {
+    return url.replace(/codesandbox\.io\/s\//i, 'codesandbox.io/embed/');
+  }
+  return url;
+}
+
 // ============================================================================
-// toCodeWidgetEmbedUrl: provider conversion
+// Deprecated export — passthrough only (D2)
 // ============================================================================
 
-describe('toCodeWidgetEmbedUrl', () => {
-  it('StackBlitz: appends ?embed=1', () => {
-    expect(toCodeWidgetEmbedUrl('https://stackblitz.com/edit/abc123')).toBe(
-      'https://stackblitz.com/edit/abc123?embed=1',
+describe('toCodeWidgetEmbedUrl (deprecated passthrough)', () => {
+  it('trims and returns the URL unchanged (no provider rules)', () => {
+    expect(toCodeWidgetEmbedUrl('  https://codesandbox.io/s/abc123  ')).toBe(
+      'https://codesandbox.io/s/abc123',
     );
-  });
-
-  it('StackBlitz: github URL appends ?embed=1', () => {
-    expect(toCodeWidgetEmbedUrl('https://stackblitz.com/github/user/repo')).toBe(
-      'https://stackblitz.com/github/user/repo?embed=1',
-    );
-  });
-
-  it('StackBlitz: keeps existing query, adds embed=1', () => {
-    expect(toCodeWidgetEmbedUrl('https://stackblitz.com/edit/abc?file=index.ts')).toBe(
-      'https://stackblitz.com/edit/abc?file=index.ts&embed=1',
-    );
-  });
-
-  it('CodeSandbox: /s/{id} → /embed/{id}', () => {
-    expect(toCodeWidgetEmbedUrl('https://codesandbox.io/s/abc123')).toBe(
-      'https://codesandbox.io/embed/abc123',
-    );
-  });
-
-  it('Replit: appends ?embed=true', () => {
-    expect(toCodeWidgetEmbedUrl('https://replit.com/@user/my-repl')).toBe(
-      'https://replit.com/@user/my-repl?embed=true',
-    );
-  });
-
-  it('CodePen: /pen/ → /embed/', () => {
-    expect(toCodeWidgetEmbedUrl('https://codepen.io/user/pen/abcDEF')).toBe(
-      'https://codepen.io/user/embed/abcDEF',
-    );
-  });
-
-  it('JSFiddle: ensures trailing /embedded/', () => {
-    expect(toCodeWidgetEmbedUrl('https://jsfiddle.net/user/abc123/')).toBe(
-      'https://jsfiddle.net/user/abc123/embedded/',
-    );
-  });
-
-  it('Trinket: /{lang}/{id} → /embed/{lang}/{id}', () => {
-    expect(toCodeWidgetEmbedUrl('https://trinket.io/python3/abc123')).toBe(
-      'https://trinket.io/embed/python3/abc123',
-    );
-  });
-
-  it('OneCompiler: /{lang}/{id} → /embed/{lang}/{id}', () => {
-    expect(toCodeWidgetEmbedUrl('https://onecompiler.com/python/xyz789')).toBe(
-      'https://onecompiler.com/embed/python/xyz789',
-    );
-  });
-
-  it('OneCompiler: blank editor /embed/{lang} unchanged', () => {
-    expect(toCodeWidgetEmbedUrl('https://onecompiler.com/embed/python')).toBe(
-      'https://onecompiler.com/embed/python',
-    );
-  });
-
-  it('unknown host returned unchanged', () => {
-    expect(toCodeWidgetEmbedUrl('https://example.com/playground/x')).toBe(
-      'https://example.com/playground/x',
+    expect(toCodeWidgetEmbedUrl('https://stackblitz.com/edit/abc')).toBe(
+      'https://stackblitz.com/edit/abc',
     );
   });
 
   it('empty string → empty string', () => {
     expect(toCodeWidgetEmbedUrl('')).toBe('');
-  });
-
-  it('idempotent: embed URLs are returned unchanged', () => {
-    const urls = [
-      'https://stackblitz.com/edit/abc?embed=1',
-      'https://codesandbox.io/embed/abc123',
-      'https://replit.com/@user/my-repl?embed=true',
-      'https://codepen.io/user/embed/abcDEF',
-      'https://jsfiddle.net/user/abc123/embedded/',
-      'https://trinket.io/embed/python3/abc123',
-      'https://onecompiler.com/embed/python/xyz789',
-      'https://onecompiler.com/embed/python',
-    ];
-    for (const u of urls) {
-      expect(toCodeWidgetEmbedUrl(u)).toBe(u);
-      // double application is stable
-      expect(toCodeWidgetEmbedUrl(toCodeWidgetEmbedUrl(u))).toBe(u);
-    }
   });
 });
 
@@ -142,16 +75,23 @@ describe('toCodeWidgetEmbedUrl', () => {
 // ============================================================================
 
 describe('Code Widget: Delta → HTML', () => {
-  it('renders an iframe carrying data-code-widget', () => {
+  it('default: passthrough stored URL (no host transform)', () => {
     const delta = new Delta()
       .insert({ codeWidget: 'https://codesandbox.io/s/abc123' })
       .insert('\n');
     const html = deltaToHtml(delta);
     expect(html).toContain('<iframe');
     expect(html).toContain('data-code-widget');
-    // src is converted to the embed form
-    expect(html).toContain('src="https://codesandbox.io/embed/abc123"');
+    expect(html).toContain('src="https://codesandbox.io/s/abc123"');
     expect(html).toContain('allowfullscreen');
+  });
+
+  it('injects codeWidgetEmbedUrl for share→embed', () => {
+    const delta = new Delta()
+      .insert({ codeWidget: 'https://codesandbox.io/s/abc123' })
+      .insert('\n');
+    const html = deltaToHtml(delta, { codeWidgetEmbedUrl: stubCodeWidgetEmbedUrl });
+    expect(html).toContain('src="https://codesandbox.io/embed/abc123"');
   });
 
   it('does not emit isolation attrs by default (CodePen-friendly)', () => {
@@ -210,7 +150,6 @@ describe('Code Widget: HTML → Delta', () => {
     const op = findEmbedOp(delta.ops as InsertOp[], 'codeWidget');
     expect(op).toBeDefined();
     expect(embedValue(op!, 'codeWidget')).toBe('https://codesandbox.io/embed/abc123');
-    // must NOT be misread as a video
     expect(findEmbedOp(delta.ops as InsertOp[], 'video')).toBeUndefined();
   });
 
@@ -240,11 +179,22 @@ describe('Code Widget: HTML → Delta', () => {
 // ============================================================================
 
 describe('Code Widget: Delta → HTML → Delta roundtrip', () => {
-  it('simple widget roundtrips (value becomes the embed URL, idempotent)', () => {
+  it('passthrough roundtrip keeps the stored share URL', () => {
     const original = new Delta()
       .insert({ codeWidget: 'https://codesandbox.io/s/abc123' })
       .insert('\n');
     const html = deltaToHtml(original);
+    const restored = htmlToDelta(html);
+    const op = findEmbedOp(restored.ops as InsertOp[], 'codeWidget');
+    expect(op).toBeDefined();
+    expect(embedValue(op!, 'codeWidget')).toBe('https://codesandbox.io/s/abc123');
+  });
+
+  it('with inject, roundtrip stores the embed URL from HTML src', () => {
+    const original = new Delta()
+      .insert({ codeWidget: 'https://codesandbox.io/s/abc123' })
+      .insert('\n');
+    const html = deltaToHtml(original, { codeWidgetEmbedUrl: stubCodeWidgetEmbedUrl });
     const restored = htmlToDelta(html);
     const op = findEmbedOp(restored.ops as InsertOp[], 'codeWidget');
     expect(op).toBeDefined();

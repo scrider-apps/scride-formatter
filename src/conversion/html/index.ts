@@ -73,6 +73,7 @@ export {
   escapeHtml,
   unescapeHtml,
   toCodeWidgetEmbedUrl,
+  resolveCodeWidgetEmbedSrc,
   renderEmbedIframeIsolationAttrs,
   CODE_WIDGET_IFRAME_ALLOW,
   type EmbedRenderer,
