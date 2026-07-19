@@ -29,9 +29,19 @@ export interface TablePresentation {
   defaultCellAlign?: TableCellAlign;
 }
 
-const DEFAULT_BORDER_COLOR = '#e7e7e7';
-const DEFAULT_HEADER_BG = '#f5f5f5';
-const DEFAULT_ZEBRA_BG = '#fafafa';
+/** Default table border (HTML / clipboard / PDF host should share). */
+export const TABLE_BORDER_COLOR = '#e7e7e7';
+/** Header shade fill — matches editor light `--color-bg-hover` family. */
+export const TABLE_HEADER_BG = '#f5f5f5';
+/**
+ * Zebra body-row fill — canon aligned with editor/demo light
+ * `--color-table-zebra` (`#f6f8fa`, arch-set1 #12).
+ */
+export const TABLE_ZEBRA_BG = '#f6f8fa';
+
+const DEFAULT_BORDER_COLOR = TABLE_BORDER_COLOR;
+const DEFAULT_HEADER_BG = TABLE_HEADER_BG;
+const DEFAULT_ZEBRA_BG = TABLE_ZEBRA_BG;
 const CELL_PADDING = '6px 13px';
 
 export interface ResolvedTablePresentation {

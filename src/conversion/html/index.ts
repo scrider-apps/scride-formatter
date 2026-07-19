@@ -18,6 +18,9 @@ export {
 export {
   resolveTablePresentation,
   isZebraBodyRow,
+  TABLE_BORDER_COLOR,
+  TABLE_HEADER_BG,
+  TABLE_ZEBRA_BG,
   type ResolvedTablePresentation,
 } from './table-presentation';
 export {

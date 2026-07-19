@@ -186,7 +186,7 @@ describe('Simple Table', () => {
       // With one header <tr>, first body row is 2nd <tr> → nth-child(even) → zebra
       const row1Match = html.match(/<tr>\s*<td[^>]*>Row1<\/td>/);
       const row2Match = html.match(/<tr>\s*<td[^>]*>Row2<\/td>/);
-      expect(row1Match?.[0]).toContain('background-color');
+      expect(row1Match?.[0]).toContain('background-color: #f6f8fa');
       expect(row2Match?.[0]).not.toContain('background-color');
     });
 
