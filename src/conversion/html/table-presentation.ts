@@ -31,8 +31,8 @@ export interface TablePresentation {
 
 /** Default table border (HTML / clipboard / PDF host should share). */
 export const TABLE_BORDER_COLOR = '#e7e7e7';
-/** Header shade fill — matches editor light `--color-bg-hover` family. */
-export const TABLE_HEADER_BG = '#f5f5f5';
+/** Header shade fill — matches editor light `--color-bg-hover` (`#e9ecef`). */
+export const TABLE_HEADER_BG = '#e9ecef';
 /**
  * Zebra body-row fill — canon aligned with editor/demo light
  * `--color-table-zebra` (`#f6f8fa`, arch-set1 #12).
@@ -70,9 +70,13 @@ export function resolveTablePresentation(
   };
 }
 
-/** Match CSS `tr:nth-child(even) td` when header rows precede body in `<table>`. */
-export function isZebraBodyRow(headerRowCount: number, bodyRowIndex: number): boolean {
-  return (headerRowCount + bodyRowIndex + 1) % 2 === 0;
+/**
+ * Match editor/CSS zebra on `tbody tr:nth-child(even) td`.
+ * First body row stays light; 2nd, 4th, … get {@link TABLE_ZEBRA_BG}.
+ * `headerRowCount` is unused (thead/tbody split) — kept for call-site stability.
+ */
+export function isZebraBodyRow(_headerRowCount: number, bodyRowIndex: number): boolean {
+  return bodyRowIndex % 2 === 1;
 }
 
 function isTableCellAlign(value: string | undefined): value is TableCellAlign {

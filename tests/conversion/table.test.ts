@@ -170,7 +170,7 @@ describe('Simple Table', () => {
       const html = deltaToHtml(makeHeaderTable(), {
         tablePresentation: { headerShade: true },
       });
-      expect(html).toContain('background-color: #f5f5f5');
+      expect(html).toContain('background-color: #e9ecef');
       expect(html).toMatch(/<th style="[^"]*background-color/);
     });
 
@@ -183,11 +183,11 @@ describe('Simple Table', () => {
         .insert('Row2')
         .insert('\n', { 'table-row': 2, 'table-col': 0 });
       const html = deltaToHtml(delta, { tablePresentation: { zebraRows: true } });
-      // With one header <tr>, first body row is 2nd <tr> → nth-child(even) → zebra
+      // thead/tbody: first body = tbody tr:nth-child(1) odd → light; 2nd even → zebra
       const row1Match = html.match(/<tr>\s*<td[^>]*>Row1<\/td>/);
       const row2Match = html.match(/<tr>\s*<td[^>]*>Row2<\/td>/);
-      expect(row1Match?.[0]).toContain('background-color: #f6f8fa');
-      expect(row2Match?.[0]).not.toContain('background-color');
+      expect(row1Match?.[0]).not.toContain('background-color');
+      expect(row2Match?.[0]).toContain('background-color: #f6f8fa');
     });
 
     it('defaultCellAlign applies when col has no table-col-align', () => {
@@ -210,9 +210,9 @@ describe('Simple Table', () => {
       expect(r.line).toBe(false);
     });
 
-    it('isZebraBodyRow matches nth-child(even) with one header row', () => {
-      expect(isZebraBodyRow(1, 0)).toBe(true);
-      expect(isZebraBodyRow(1, 1)).toBe(false);
+    it('isZebraBodyRow matches tbody tr:nth-child(even)', () => {
+      expect(isZebraBodyRow(1, 0)).toBe(false);
+      expect(isZebraBodyRow(1, 1)).toBe(true);
       expect(isZebraBodyRow(0, 0)).toBe(false);
       expect(isZebraBodyRow(0, 1)).toBe(true);
     });
