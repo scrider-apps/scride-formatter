@@ -537,9 +537,15 @@ describe('htmlToDelta', () => {
       const delta = htmlToDelta(
         '<p>Hi</p><img src="https://example.com/banner.png" alt="" style="opacity: 0; display: block;">',
       );
-      expect(delta.ops.some((op) => typeof op.insert === 'object' && op.insert && 'image' in op.insert)).toBe(
-        false,
-      );
+      expect(
+        delta.ops.some(
+          (op) =>
+            'insert' in op &&
+            typeof op.insert === 'object' &&
+            op.insert != null &&
+            'image' in op.insert,
+        ),
+      ).toBe(false);
       expect(delta.ops).toEqual([{ insert: 'Hi\n' }]);
     });
 
