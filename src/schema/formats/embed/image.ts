@@ -79,6 +79,12 @@ export const imageFormat: Format<string> = {
     const src = element.getAttribute('src');
     if (!src) return null;
 
+    // Skip decorative opacity:0 placeholders (Rise / Articulate LMS paste).
+    const style = element.getAttribute('style') || '';
+    if (/(?:^|;)\s*opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)/i.test(style)) {
+      return null;
+    }
+
     const attrs: AttributeMap = {};
     const alt = element.getAttribute('alt');
     const width = element.getAttribute('width');

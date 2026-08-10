@@ -671,6 +671,14 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     const src = element.getAttribute('src');
     if (!src) return;
 
+    // Rise / Articulate (and similar LMS) paste decorative banners as
+    // `<img style="opacity: 0">` placeholders. Importing them creates a
+    // real image embed that users cannot meaningfully select/delete.
+    const style = element.getAttribute('style') || '';
+    if (/(?:^|;)\s*opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)/i.test(style)) {
+      return;
+    }
+
     const attrs: AttributeMap = {};
     const alt = element.getAttribute('alt');
     const width = element.getAttribute('width');
