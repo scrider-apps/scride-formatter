@@ -1021,19 +1021,7 @@ function renderInlineText(text: string, attributes: AttributeMap | undefined): s
 
   if (!attributes) return html;
 
-  // Apply style-based formats first (wrap in span if needed)
-  const styles: string[] = [];
-  for (const [format, cssProperty] of Object.entries(INLINE_STYLE_FORMATS)) {
-    if (format in attributes) {
-      styles.push(`${cssProperty}: ${String(attributes[format])}`);
-    }
-  }
-
-  if (styles.length > 0) {
-    html = `<span style="${styles.join('; ')}">${html}</span>`;
-  }
-
-  // Apply tag-based formats (in reverse order for proper nesting)
+  // Tag-based formats first (inner → outer via reverse INLINE_FORMAT_ORDER).
   for (let i = INLINE_FORMAT_ORDER.length - 1; i >= 0; i--) {
     const format = INLINE_FORMAT_ORDER[i];
     if (!format) continue;
@@ -1048,6 +1036,20 @@ function renderInlineText(text: string, attributes: AttributeMap | undefined): s
     } else {
       html = `<${tag}>${html}</${tag}>`;
     }
+  }
+
+  // Style span outermost — matches markdown path and FGS-1:
+  // `<span style="font-size"><s>…</s></span>` so text-decoration / <code>
+  // inherit the large size (not `<s><span style="font-size">…</span></s>`).
+  const styles: string[] = [];
+  for (const [format, cssProperty] of Object.entries(INLINE_STYLE_FORMATS)) {
+    if (format in attributes) {
+      styles.push(`${cssProperty}: ${String(attributes[format])}`);
+    }
+  }
+
+  if (styles.length > 0) {
+    html = `<span style="${styles.join('; ')}">${html}</span>`;
   }
 
   return html;

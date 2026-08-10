@@ -150,8 +150,21 @@ describe('deltaToHtml', () => {
     it('combines styles with tags', () => {
       const delta = new Delta().insert('Bold Red', { bold: true, color: '#ff0000' }).insert('\n');
 
+      // Style span outermost (same as markdown path / FGS-1).
       expect(deltaToHtml(delta)).toBe(
-        '<p><strong><span style="color: #ff0000">Bold Red</span></strong></p>',
+        '<p><span style="color: #ff0000"><strong>Bold Red</strong></span></p>',
+      );
+    });
+
+    it('wraps strike/code inside font-size so decorations scale (FGS-1)', () => {
+      const delta = new Delta()
+        .insert('strike', { strike: true, size: '32pt' })
+        .insert(' ')
+        .insert('code', { code: true, size: '32pt' })
+        .insert('\n');
+
+      expect(deltaToHtml(delta)).toBe(
+        '<p><span style="font-size: 32pt"><s>strike</s></span> <span style="font-size: 32pt"><code>code</code></span></p>',
       );
     });
   });
