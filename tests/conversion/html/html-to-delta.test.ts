@@ -259,6 +259,34 @@ describe('htmlToDelta', () => {
         { insert: '\n' },
       ]);
     });
+
+    it('ignores font-family/size CSS keywords (Rise font: inherit)', () => {
+      const delta = htmlToDelta(
+        '<p><span style="font: inherit; color: rgb(255, 85, 39)">Hi</span></p>',
+      );
+      expect(delta.ops).toEqual([
+        { insert: 'Hi', attributes: { color: 'rgb(255, 85, 39)' } },
+        { insert: '\n' },
+      ]);
+    });
+
+    it('maps style font-weight to bold', () => {
+      const delta = htmlToDelta('<p><span style="font-weight: 700">Bold</span></p>');
+      expect(delta.ops).toEqual([
+        { insert: 'Bold', attributes: { bold: true } },
+        { insert: '\n' },
+      ]);
+    });
+
+    it('converts font-size px to pt and skips selection background', () => {
+      const delta = htmlToDelta(
+        '<p><span style="font-size: 24px; background-color: rgb(221, 228, 235); color: rgb(255, 85, 39)">Hi</span></p>',
+      );
+      expect(delta.ops).toEqual([
+        { insert: 'Hi', attributes: { size: '18pt', color: 'rgb(255, 85, 39)' } },
+        { insert: '\n' },
+      ]);
+    });
   });
 
   describe('headers', () => {

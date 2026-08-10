@@ -75,6 +75,70 @@ export interface ParserContext {
   pushNewline(): void;
 }
 
+/** CSS-wide keywords that must not become Delta `font` / `size` / color attrs. */
+function isCssWideKeyword(value: string): boolean {
+  return /^(inherit|initial|unset|revert|revert-layer)$/i.test(value.trim());
+}
+
+/**
+ * First concrete family from a CSS `font-family` list; null for keywords /
+ * empty / generics-only (LMS paste often stamps `font: inherit`).
+ */
+function cleanPastedFontFamily(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!trimmed || isCssWideKeyword(trimmed)) return null;
+
+  const first = trimmed
+    .split(',')
+    .map((part) => part.trim().replace(/^["']|["']$/g, ''))
+    .find((part) => part && !isCssWideKeyword(part) && !part.startsWith('var('));
+  if (!first) return null;
+  const lower = first.toLowerCase();
+  if (
+    lower === 'serif' ||
+    lower === 'sans-serif' ||
+    lower === 'monospace' ||
+    lower === 'cursive' ||
+    lower === 'fantasy' ||
+    lower === 'system-ui'
+  ) {
+    return null;
+  }
+  return first;
+}
+
+/** Drop CSS-wide / relative size keywords; keep concrete lengths (px → pt). */
+function cleanPastedFontSize(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const trimmed = value.trim();
+  if (!trimmed || isCssWideKeyword(trimmed)) return null;
+  if (/^(medium|smaller|larger|xx-small|x-small|small|large|x-large|xx-large)$/i.test(trimmed)) {
+    return null;
+  }
+  const px = trimmed.match(/^([\d.]+)\s*px$/i);
+  if (px?.[1]) {
+    const pt = Math.round((Number(px[1]) * 72) / 96);
+    return pt > 0 ? `${pt}pt` : null;
+  }
+  return trimmed;
+}
+
+/**
+ * Browser selection highlight baked into clipboard HTML (not author intent).
+ * Light blue-gray fills like Chrome/Edge `rgb(221, 228, 235)`.
+ */
+function isSelectionBackgroundColor(value: string): boolean {
+  const m = value.trim().match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!m) return false;
+  const r = Number(m[1]);
+  const g = Number(m[2]);
+  const b = Number(m[3]);
+  if (![r, g, b].every((n) => Number.isFinite(n))) return false;
+  // Light cool gray/blue — typical ::selection on light themes.
+  return r >= 180 && g >= 180 && b >= 180 && b >= r - 5 && b >= g - 5 && b - Math.min(r, g) <= 40;
+}
+
 /**
  * Convert HTML string to Delta
  *
@@ -633,28 +697,46 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
 
     // Extract color
     const color = element.style?.color || element.style?.getPropertyValue?.('color');
-    if (color) {
+    if (color && !isCssWideKeyword(color)) {
       currentAttributes.color = color;
     }
 
-    // Extract background
+    // Extract background (skip clipboard selection chrome)
     const bg =
       element.style?.backgroundColor || element.style?.getPropertyValue?.('background-color');
-    if (bg) {
+    if (bg && !isCssWideKeyword(bg) && !isSelectionBackgroundColor(bg)) {
       currentAttributes.background = bg;
     }
 
-    // Extract font-family
+    // Extract font-family (skip CSS-wide keywords from LMS `font: inherit`)
     const fontFamily =
       element.style?.fontFamily || element.style?.getPropertyValue?.('font-family');
-    if (fontFamily) {
-      currentAttributes.font = fontFamily.replace(/^["']|["']$/g, '');
+    const cleanedFont = cleanPastedFontFamily(fontFamily);
+    if (cleanedFont) {
+      currentAttributes.font = cleanedFont;
     }
 
     // Extract font-size
     const fontSize = element.style?.fontSize || element.style?.getPropertyValue?.('font-size');
-    if (fontSize) {
-      currentAttributes.size = fontSize;
+    const cleanedSize = cleanPastedFontSize(fontSize);
+    if (cleanedSize) {
+      currentAttributes.size = cleanedSize;
+    }
+
+    // Word / Rise often use style font-weight instead of <strong>/<b>
+    const fontWeight =
+      element.style?.fontWeight || element.style?.getPropertyValue?.('font-weight');
+    if (
+      fontWeight === 'bold' ||
+      fontWeight === 'bolder' ||
+      (fontWeight != null && Number.parseInt(String(fontWeight), 10) >= 600)
+    ) {
+      currentAttributes.bold = true;
+    }
+
+    const fontStyle = element.style?.fontStyle || element.style?.getPropertyValue?.('font-style');
+    if (fontStyle === 'italic' || fontStyle === 'oblique') {
+      currentAttributes.italic = true;
     }
 
     processChildren(element);
