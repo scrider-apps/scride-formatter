@@ -232,6 +232,27 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
   }
 
   /**
+   * Open a fresh line for a `{ block }` container embed.
+   *
+   * A container embed owns the `\n` that follows it, so it must start its own
+   * line. Source HTML does not always close the preceding block: pasting a
+   * markdown document that carries raw `<table>` markup leaves the prose
+   * before the table as loose text, and the embed then lands mid-line. The
+   * text loses its own terminator, a heading before the table collapses into
+   * the table's line (dropping its `header` attribute), and every index below
+   * the embed shifts by one on the HTML→Delta round-trip.
+   *
+   * Same guard the block-level `divider` embed already applies; well-formed
+   * HTML is unaffected because the block close already left us at line start.
+   */
+  function beginBlockEmbedLine(): void {
+    flushText();
+    if (!atLineStart) {
+      context.pushNewline();
+    }
+  }
+
+  /**
    * Process a node recursively
    */
   function processNode(node: DOMNode): void {
@@ -829,7 +850,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       };
       const data = footnotesHandler.fromHtml(section, blockContext);
       if (data) {
-        flushText();
+        beginBlockEmbedLine();
         delta.insert({ block: data });
         delta.insert('\n');
         atLineStart = true;
@@ -859,7 +880,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       };
       const data = alertHandler.fromHtml(element, blockContext);
       if (data) {
-        flushText();
+        beginBlockEmbedLine();
         delta.insert({ block: data });
         delta.insert('\n');
         atLineStart = true;
@@ -889,7 +910,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       };
       const data = columnsHandler.fromHtml(element, blockContext);
       if (data) {
-        flushText();
+        beginBlockEmbedLine();
         delta.insert({ block: data });
         delta.insert('\n');
         atLineStart = true;
@@ -920,7 +941,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       };
       const data = boxHandler.fromHtml(element, blockContext);
       if (data) {
-        flushText();
+        beginBlockEmbedLine();
 
         // Extract op attributes from HTML element
         const opAttrs: Record<string, string> = {};
@@ -987,7 +1008,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     if (!data) return false;
     if (host) data = enrichTableBlockFromHost(data, host);
 
-    flushText();
+    beginBlockEmbedLine();
     delta.insert({ block: data });
     delta.insert('\n');
     atLineStart = true;

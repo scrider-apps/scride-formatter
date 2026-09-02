@@ -1347,3 +1347,58 @@ describe('Extended Table: normalize', () => {
     expect(normalized.cells['0:0']!.ops).toEqual([{ insert: 'A\n' }]);
   });
 });
+
+describe('Extended Table: block embed starts its own line', () => {
+  const blockHandlers = createDefaultBlockHandlers();
+  const TABLE = '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>';
+
+  /** A `{ block }` embed owns the following `\n`, so nothing may precede it on its line. */
+  function textGluedToBlockEmbed(ops: readonly Op[]): boolean {
+    for (let i = 1; i < ops.length; i++) {
+      const op = ops[i]!;
+      const insert = 'insert' in op ? op.insert : undefined;
+      if (typeof insert !== 'object' || insert === null || !('block' in insert)) continue;
+      const prev = ops[i - 1]!;
+      const prevInsert = 'insert' in prev ? prev.insert : undefined;
+      if (typeof prevInsert === 'string' && prevInsert !== '' && !prevInsert.endsWith('\n')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  it('breaks the line when loose text precedes a table', () => {
+    const ops = htmlToDelta(`Intro text${TABLE}`, { blockHandlers }).ops;
+    expect(textGluedToBlockEmbed(ops)).toBe(false);
+  });
+
+  it('keeps a heading between two tables off the table line', () => {
+    // Own-clipboard shape: a markdown document carrying raw `<table>` markup,
+    // so `### …` reaches the parser as loose text rather than a closed block.
+    const source = `${TABLE}\n\n### Making a Request\n\n${TABLE}\n`;
+    const ops = htmlToDelta(source, { blockHandlers }).ops;
+    expect(textGluedToBlockEmbed(ops)).toBe(false);
+  });
+
+  it('adds no break when the preceding block is properly closed', () => {
+    const ops = htmlToDelta(`<p>Intro text</p>${TABLE}`, { blockHandlers }).ops;
+    expect(textGluedToBlockEmbed(ops)).toBe(false);
+    const text = ops
+      .map((op) => ('insert' in op && typeof op.insert === 'string' ? op.insert : ''))
+      .join('');
+    expect(text).toBe('Intro text\n\n');
+  });
+
+  it('keeps the heading attribute on an unterminated heading before a table', () => {
+    const ops = htmlToDelta(`<h3>Making a Request${TABLE}`, { blockHandlers }).ops;
+    expect(textGluedToBlockEmbed(ops)).toBe(false);
+    const headerNl = ops.find(
+      (op) =>
+        'insert' in op &&
+        op.insert === '\n' &&
+        'attributes' in op &&
+        (op.attributes as Record<string, unknown> | undefined)?.header === 3,
+    );
+    expect(headerNl).toBeDefined();
+  });
+});
