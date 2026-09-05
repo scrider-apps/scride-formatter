@@ -199,7 +199,7 @@ describe('deltaToHtml', () => {
     it('converts blockquote', () => {
       const delta = new Delta().insert('Quote\n', { blockquote: true });
 
-      expect(deltaToHtml(delta)).toBe('<blockquote>Quote</blockquote>');
+      expect(deltaToHtml(delta)).toBe('<blockquote><p>Quote</p></blockquote>');
     });
 
     it('converts blockquote with formatting', () => {
@@ -208,7 +208,26 @@ describe('deltaToHtml', () => {
         .insert('text', {})
         .insert('\n', { blockquote: true });
 
-      expect(deltaToHtml(delta)).toBe('<blockquote><em>Quoted </em>text</blockquote>');
+      expect(deltaToHtml(delta)).toBe('<blockquote><p><em>Quoted </em>text</p></blockquote>');
+    });
+
+    it('wraps consecutive quote lines in one blockquote', () => {
+      const delta = new Delta()
+        .insert('Line 1\n', { blockquote: true })
+        .insert('Line 2\n', { blockquote: true });
+
+      expect(deltaToHtml(delta)).toBe('<blockquote><p>Line 1</p><p>Line 2</p></blockquote>');
+    });
+
+    it('starts a new blockquote after a plain paragraph', () => {
+      const delta = new Delta()
+        .insert('Quote A\n', { blockquote: true })
+        .insert('Body\n')
+        .insert('Quote B\n', { blockquote: true });
+
+      expect(deltaToHtml(delta)).toBe(
+        '<blockquote><p>Quote A</p></blockquote><p>Body</p><blockquote><p>Quote B</p></blockquote>',
+      );
     });
   });
 
@@ -481,9 +500,7 @@ describe('deltaToHtml', () => {
     it('converts YouTube embed with credentialless when embed isolation enabled', () => {
       const delta = new Delta().insert({ video: 'https://youtube.com/embed/abc123' }).insert('\n');
 
-      expect(
-        deltaToHtml(delta, { embed: { credentialless: true } }),
-      ).toBe(
+      expect(deltaToHtml(delta, { embed: { credentialless: true } })).toBe(
         '<p><iframe src="https://youtube.com/embed/abc123" frameborder="0" allowfullscreen credentialless></iframe></p>',
       );
     });

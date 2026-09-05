@@ -49,7 +49,11 @@ import { collectAdjacentTableLines } from '../markdown/table-region';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
 export type { ResolvedHeadingPolicy };
-export { resolveHeadingPolicy, headingPolicyStyleParts, HEADER_SIZE_PRESETS } from './heading-presentation';
+export {
+  resolveHeadingPolicy,
+  headingPolicyStyleParts,
+  HEADER_SIZE_PRESETS,
+} from './heading-presentation';
 
 export type { EmbedIsolationOptions };
 
@@ -225,7 +229,28 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       continue;
     }
 
-    const { tag, isList, listType, indent, isCodeBlock } = getBlockInfo(line.attributes);
+    const { tag, isList, listType, indent, isCodeBlock, isBlockquote } = getBlockInfo(
+      line.attributes,
+    );
+
+    // Consecutive `{ blockquote: true }` lines share one <blockquote> (like lists).
+    if (isBlockquote) {
+      html += closeAllLists(listStack, pretty);
+      listStack = [];
+      counters = [];
+
+      const quoteLines = collectBlockquoteLines(lines, i);
+      html += renderBlockquote(
+        quoteLines,
+        embedRenderers,
+        pretty,
+        blockHandlers,
+        options,
+        resolvedDocumentPresentation,
+      );
+      i += quoteLines.length - 1;
+      continue;
+    }
 
     // Handle code block grouping (similar to lists)
     if (isCodeBlock) {
@@ -263,13 +288,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
 
     // Handle list nesting
     if (isList) {
-      html += handleListOpen(
-        listStack,
-        listType!,
-        indent,
-        pretty,
-        resolvedDocumentPresentation,
-      );
+      html += handleListOpen(listStack, listType!, indent, pretty, resolvedDocumentPresentation);
 
       // Update hierarchical counters for ordered lists
       if (hierarchicalNumbers && listType === 'ordered') {
@@ -562,7 +581,8 @@ function renderTable(
   const presentation = usePresentation ? resolveTablePresentation(options.tablePresentation) : null;
   const headerRowCount = headerRows.length;
 
-  let html = usePresentation && presentation ? `${tableOpenTag(presentation)}${nl}` : `<table>${nl}`;
+  let html =
+    usePresentation && presentation ? `${tableOpenTag(presentation)}${nl}` : `<table>${nl}`;
 
   // Render <thead>
   if (headerRows.length > 0) {
@@ -664,36 +684,145 @@ function getBlockInfo(attributes: AttributeMap | undefined): {
   tag: string;
   isList: boolean;
   isCodeBlock: boolean;
+  isBlockquote: boolean;
   listType: string | undefined;
   indent: number;
 } {
   if (!attributes) {
-    return { tag: 'p', isList: false, isCodeBlock: false, listType: undefined, indent: 0 };
+    return {
+      tag: 'p',
+      isList: false,
+      isCodeBlock: false,
+      isBlockquote: false,
+      listType: undefined,
+      indent: 0,
+    };
   }
 
   const indent = typeof attributes.indent === 'number' ? attributes.indent : 0;
 
   // Check for code block (handled separately with grouping)
   if (attributes['code-block']) {
-    return { tag: 'pre', isList: false, isCodeBlock: true, listType: undefined, indent };
+    return {
+      tag: 'pre',
+      isList: false,
+      isCodeBlock: true,
+      isBlockquote: false,
+      listType: undefined,
+      indent,
+    };
   }
 
   // Check for list
   if (attributes.list) {
     const listVal = attributes.list;
     const listType = typeof listVal === 'string' ? listVal : 'bullet';
-    return { tag: 'li', isList: true, isCodeBlock: false, listType, indent };
+    return { tag: 'li', isList: true, isCodeBlock: false, isBlockquote: false, listType, indent };
+  }
+
+  // Consecutive quote lines are grouped (see collectBlockquoteLines).
+  if (attributes.blockquote) {
+    return {
+      tag: 'blockquote',
+      isList: false,
+      isCodeBlock: false,
+      isBlockquote: true,
+      listType: undefined,
+      indent,
+    };
   }
 
   // Check for other block formats
   for (const [format, tagOrFn] of Object.entries(BLOCK_FORMAT_TAGS)) {
     if (format in attributes && format !== 'list' && format !== 'code-block') {
       const tag = typeof tagOrFn === 'function' ? tagOrFn(attributes[format]) : tagOrFn;
-      return { tag, isList: false, isCodeBlock: false, listType: undefined, indent };
+      return {
+        tag,
+        isList: false,
+        isCodeBlock: false,
+        isBlockquote: false,
+        listType: undefined,
+        indent,
+      };
     }
   }
 
-  return { tag: 'p', isList: false, isCodeBlock: false, listType: undefined, indent };
+  return {
+    tag: 'p',
+    isList: false,
+    isCodeBlock: false,
+    isBlockquote: false,
+    listType: undefined,
+    indent,
+  };
+}
+
+/**
+ * Collect consecutive lines that share `{ blockquote: true }`.
+ * A plain paragraph (or any other block) breaks the group — same rule as lists.
+ */
+function collectBlockquoteLines(lines: LineContent[], startIndex: number): LineContent[] {
+  const quoteLines: LineContent[] = [];
+
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || !line.attributes?.blockquote) break;
+    quoteLines.push(line);
+  }
+
+  return quoteLines;
+}
+
+/**
+ * Render consecutive quote lines as one `<blockquote>` wrapping inner `<p>`s.
+ *
+ * Delta stays per-line `{ blockquote: true }` on `\n`. Grouping is render-only.
+ * Per-line align / line-height live on the inner `<p>` (styled as a quote, not a
+ * plain paragraph — no document-level paragraph spacing). Shared indent sits on
+ * the wrapper so the left bar moves with the quote.
+ */
+function renderBlockquote(
+  quoteLines: LineContent[],
+  embedRenderers: Record<string, (value: unknown, attrs?: Record<string, unknown>) => string>,
+  pretty: boolean,
+  blockHandlers: BlockHandlerRegistry | undefined,
+  options: DeltaToHtmlOptions | undefined,
+  resolvedDocumentPresentation: ReturnType<typeof resolveDocumentPresentation> | undefined,
+): string {
+  const firstAttrs = quoteLines[0]?.attributes;
+  const wrapperIndent =
+    firstAttrs && typeof firstAttrs.indent === 'number' && firstAttrs.indent > 0
+      ? ` style="margin-left: ${firstAttrs.indent * 2}em"`
+      : '';
+
+  const nl = pretty ? '\n' : '';
+  const innerIndent = pretty ? '  ' : '';
+  let html = `<blockquote${wrapperIndent}>${nl}`;
+
+  for (const line of quoteLines) {
+    const content = renderLineContent(line.ops, embedRenderers, blockHandlers, options);
+    html += `${innerIndent}${renderBlockquoteParagraph(content, line.attributes, resolvedDocumentPresentation)}${nl}`;
+  }
+
+  html += `</blockquote>`;
+  return pretty ? html + '\n' : html;
+}
+
+/**
+ * Inner quote line. Styles use the `blockquote` tag policy (line-height, align)
+ * so document paragraph spacing / first-line indent do not leak onto quote lines.
+ */
+function renderBlockquoteParagraph(
+  content: string,
+  attributes: AttributeMap | undefined,
+  resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
+): string {
+  const styleSource: AttributeMap | undefined = attributes
+    ? { ...attributes, indent: undefined }
+    : undefined;
+  const styleAttr = getBlockStyleAttribute('blockquote', styleSource, resolvedDocumentPresentation);
+  const innerContent = content || '<br>';
+  return `<p${styleAttr}>${innerContent}</p>`;
 }
 
 /**
@@ -1108,8 +1237,9 @@ function renderEmbed(
     }
   }
 
-  const renderer: ((value: unknown, attrs?: Record<string, unknown>, context?: FormatRenderContext) => string) | undefined =
-    renderers[embedType];
+  const renderer:
+    | ((value: unknown, attrs?: Record<string, unknown>, context?: FormatRenderContext) => string)
+    | undefined = renderers[embedType];
   if (renderer) {
     return renderer(embedValue, attributes as Record<string, unknown> | undefined, embedContext);
   }

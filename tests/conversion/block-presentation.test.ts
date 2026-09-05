@@ -100,7 +100,7 @@ describe('deltaToHtml scrider-line-height', () => {
       .insert('\n', { blockquote: true, [SCRIDER_LINE_HEIGHT_KEY]: '1.5' });
 
     const html = deltaToHtml(delta);
-    expect(html).toMatch(/<blockquote[^>]*line-height:1\.5/);
+    expect(html).toMatch(/<blockquote><p[^>]*line-height:1\.5/);
   });
 
   it('does not add line-height to headings from documentPresentation', () => {

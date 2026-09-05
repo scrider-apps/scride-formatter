@@ -105,6 +105,18 @@ describe('Round-trip: Delta → HTML → Delta', () => {
     expect(restored.ops.some((op) => hasAttr(op, 'blockquote', true))).toBe(true);
   });
 
+  it('preserves multi-line blockquote as one wrapper', () => {
+    const original = new Delta()
+      .insert('Line 1\n', { blockquote: true })
+      .insert('Line 2\n', { blockquote: true });
+
+    const html = deltaToHtml(original);
+    expect(html).toBe('<blockquote><p>Line 1</p><p>Line 2</p></blockquote>');
+
+    const restored = htmlToDelta(html);
+    expect(deltasAreEquivalent(original, restored)).toBe(true);
+  });
+
   it('preserves code blocks', () => {
     const original = new Delta().insert('const x = 1;\n', { 'code-block': true });
 
@@ -138,7 +150,7 @@ describe('Round-trip: Delta → HTML → Delta', () => {
         (op) =>
           'insert' in op &&
           typeof op.insert === 'object' &&
-          (op.insert).image === 'https://example.com/img.png',
+          op.insert.image === 'https://example.com/img.png',
       ),
     ).toBe(true);
   });
@@ -253,7 +265,7 @@ describe.runIf(runMarkdownTests)('Round-trip: Delta → Markdown → Delta', () 
         (op) =>
           'insert' in op &&
           typeof op.insert === 'object' &&
-          (op.insert).image === 'https://example.com/img.png',
+          op.insert.image === 'https://example.com/img.png',
       ),
     ).toBe(true);
   });

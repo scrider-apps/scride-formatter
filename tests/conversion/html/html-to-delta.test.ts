@@ -63,10 +63,7 @@ describe('htmlToDelta', () => {
 
       // The explicit marker overrides positional heuristics — this is a
       // softBreak embed even though there is no previous text sibling.
-      expect(delta.ops).toEqual([
-        { insert: { softBreak: true } },
-        { insert: 'Line 2\n' },
-      ]);
+      expect(delta.ops).toEqual([{ insert: { softBreak: true } }, { insert: 'Line 2\n' }]);
     });
 
     it('handles plain text without wrapper', () => {
@@ -272,10 +269,7 @@ describe('htmlToDelta', () => {
 
     it('maps style font-weight to bold', () => {
       const delta = htmlToDelta('<p><span style="font-weight: 700">Bold</span></p>');
-      expect(delta.ops).toEqual([
-        { insert: 'Bold', attributes: { bold: true } },
-        { insert: '\n' },
-      ]);
+      expect(delta.ops).toEqual([{ insert: 'Bold', attributes: { bold: true } }, { insert: '\n' }]);
     });
 
     it('converts font-size px to pt and skips selection background', () => {
@@ -334,6 +328,17 @@ describe('htmlToDelta', () => {
 
       expect(delta.ops).toEqual([
         { insert: 'Italic quote', attributes: { italic: true } },
+        { insert: '\n', attributes: { blockquote: true } },
+      ]);
+    });
+
+    it('converts wrapped quote paragraphs without an extra empty line', () => {
+      const delta = htmlToDelta('<blockquote><p>Line 1</p><p>Line 2</p></blockquote>');
+
+      expect(delta.ops).toEqual([
+        { insert: 'Line 1' },
+        { insert: '\n', attributes: { blockquote: true } },
+        { insert: 'Line 2' },
         { insert: '\n', attributes: { blockquote: true } },
       ]);
     });

@@ -75,6 +75,24 @@ export interface ParserContext {
   pushNewline(): void;
 }
 
+/** Block children of `<blockquote>` that already emit their own `\n`. */
+const BLOCKQUOTE_INNER_BLOCK_TAGS = new Set([
+  'p',
+  'div',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'ul',
+  'ol',
+  'li',
+  'pre',
+  'blockquote',
+  'table',
+]);
+
 /** CSS-wide keywords that must not become Delta `font` / `size` / color attrs. */
 function isCssWideKeyword(value: string): boolean {
   return /^(inherit|initial|unset|revert|revert-layer)$/i.test(value.trim());
@@ -485,9 +503,29 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     }
 
     processChildren(element);
-    context.pushNewline();
+    // Nested `<p>` / other blocks already emit their own `\n`. A trailing
+    // newline here would add an extra empty quote line after
+    // `<blockquote><p>A</p><p>B</p></blockquote>`. Legacy inline-only
+    // `<blockquote>Quote</blockquote>` still needs this terminator.
+    if (!(format.format === 'blockquote' && hasBlockChildElement(element))) {
+      context.pushNewline();
+    }
 
     currentBlockAttributes = prevBlockAttrs;
+  }
+
+  /**
+   * True when a block has a block-level element child (not just inline text).
+   */
+  function hasBlockChildElement(element: DOMElement): boolean {
+    const children = element.childNodes;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      if (!child || !isElement(child)) continue;
+      const tag = child.tagName.toLowerCase();
+      if (BLOCKQUOTE_INNER_BLOCK_TAGS.has(tag)) return true;
+    }
+    return false;
   }
 
   /**
