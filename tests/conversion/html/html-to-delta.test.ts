@@ -463,6 +463,19 @@ describe('htmlToDelta', () => {
       ]);
     });
 
+    it('keeps mixed checked and unchecked items from one ul', () => {
+      const delta = htmlToDelta(
+        '<ul><li data-checked="true">Done</li><li data-checked="false">Todo</li></ul>',
+      );
+
+      expect(delta.ops).toEqual([
+        { insert: 'Done' },
+        { insert: '\n', attributes: { list: 'checked' } },
+        { insert: 'Todo' },
+        { insert: '\n', attributes: { list: 'unchecked' } },
+      ]);
+    });
+
     it('converts nested list', () => {
       const delta = htmlToDelta('<ul><li>Parent<ul><li>Child</li></ul></li></ul>');
 

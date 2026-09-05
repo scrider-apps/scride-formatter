@@ -20,6 +20,7 @@ import {
   INLINE_STYLE_FORMATS,
   BLOCK_FORMAT_TAGS,
   LIST_WRAPPER_TAGS,
+  listWrapperFamily,
   EMBED_RENDERERS,
   escapeHtml,
 } from './config';
@@ -941,9 +942,11 @@ function handleListOpen(
     }
   }
 
-  // Close and reopen if list type changed at same level
+  // Close and reopen only when the wrapper tag changes (ul ↔ ol).
+  // `checked` / `unchecked` / `bullet` all share `<ul>` so a task-list
+  // toggle does not split the list and shove neighbouring lines.
   const top = stack[stack.length - 1];
-  if (top && top.indent === indent && top.type !== listType) {
+  if (top && top.indent === indent && listWrapperFamily(top.type) !== listWrapperFamily(listType)) {
     const closed = stack.pop();
     if (closed) {
       const closeTag = LIST_WRAPPER_TAGS[closed.type] || 'ul';

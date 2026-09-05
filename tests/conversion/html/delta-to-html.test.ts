@@ -352,6 +352,27 @@ describe('deltaToHtml', () => {
       expect(deltaToHtml(delta)).toBe('<ul><li data-checked="false">Todo</li></ul>');
     });
 
+    it('keeps mixed checked and unchecked items in one ul', () => {
+      const delta = new Delta()
+        .insert('Done\n', { list: 'checked' })
+        .insert('Todo\n', { list: 'unchecked' })
+        .insert('Also done\n', { list: 'checked' });
+
+      expect(deltaToHtml(delta)).toBe(
+        '<ul><li data-checked="true">Done</li><li data-checked="false">Todo</li><li data-checked="true">Also done</li></ul>',
+      );
+    });
+
+    it('keeps a bullet and a task item in one ul', () => {
+      const delta = new Delta()
+        .insert('Bullet\n', { list: 'bullet' })
+        .insert('Task\n', { list: 'checked' });
+
+      expect(deltaToHtml(delta)).toBe(
+        '<ul><li>Bullet</li><li data-checked="true">Task</li></ul>',
+      );
+    });
+
     it('converts nested list', () => {
       const delta = new Delta()
         .insert('Parent\n', { list: 'bullet' })

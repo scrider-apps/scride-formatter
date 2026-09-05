@@ -74,6 +74,11 @@ export const LIST_WRAPPER_TAGS: Record<string, string> = {
   unchecked: 'ul',
 };
 
+/** Same HTML wrapper → same list. `bullet` / `checked` / `unchecked` share `<ul>`. */
+export function listWrapperFamily(listType: string): string {
+  return LIST_WRAPPER_TAGS[listType] || 'ul';
+}
+
 /**
  * Embed format to HTML renderer
  */
