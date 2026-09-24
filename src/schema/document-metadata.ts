@@ -36,6 +36,16 @@ export interface ScriderDocumentMetadata {
   textIndentCm?: number;
   /** Extra left indent in cm on top-level `<ul>`/`<ol>` (shifts marker + text). */
   listBlockIndentCm?: number;
+  /**
+   * GFM-style extra left indent for list markers (em of the document size).
+   * Default on when omitted. `false` aligns markers with paragraph text.
+   */
+  listLeftIndent?: boolean;
+  /**
+   * Extra space above/below a list block (beyond body line-height).
+   * Default on when omitted.
+   */
+  listTopPadding?: boolean;
   /** Document heading horizontal alignment policy. Presence = policy on. */
   headingAlign?: 'left' | 'center' | 'right';
   /** Document heading bold policy. `true` = force bold on `h1`–`h6`. */

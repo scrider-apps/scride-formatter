@@ -527,6 +527,52 @@ describe('htmlToDelta', () => {
     });
   });
 
+  describe('indent', () => {
+    it('reads margin-left em on a paragraph as indent (deltaToHtml inverse)', () => {
+      const delta = htmlToDelta('<p style="margin-left: 2em">Indented</p>');
+
+      expect(delta.ops).toEqual([
+        { insert: 'Indented' },
+        { insert: '\n', attributes: { indent: 1 } },
+      ]);
+    });
+
+    it('maps 6em to indent 3', () => {
+      const delta = htmlToDelta('<p style="margin-left: 6em">Deep</p>');
+
+      expect(delta.ops).toEqual([{ insert: 'Deep' }, { insert: '\n', attributes: { indent: 3 } }]);
+    });
+
+    it('round-trips with deltaToHtml', () => {
+      const source = new Delta().insert('123').insert('\n', { indent: 1 });
+      const again = htmlToDelta(deltaToHtml(source));
+
+      expect(again.ops).toEqual([
+        { insert: '123' },
+        { insert: '\n', attributes: { indent: 1 } },
+      ]);
+    });
+
+    it('ignores cm margin-left (list-block / settings, not Tab indent)', () => {
+      const delta = htmlToDelta('<p style="margin-left: 1.25cm">Hello</p>');
+
+      expect(delta.ops).toEqual([{ insert: 'Hello\n' }]);
+    });
+
+    it('does not take inner-p margin-left as nest inside a list', () => {
+      const delta = htmlToDelta('<ol><li><p style="margin-left: 2em">Item</p></li></ol>');
+
+      expect(
+        delta.ops.some(
+          (op) => 'attributes' in op && typeof op.attributes?.indent === 'number',
+        ),
+      ).toBe(false);
+      expect(
+        delta.ops.some((op) => 'attributes' in op && op.attributes?.list === 'ordered'),
+      ).toBe(true);
+    });
+  });
+
   describe('embeds', () => {
     it('converts image', () => {
       const delta = htmlToDelta('<p><img src="https://example.com/img.png"></p>');
