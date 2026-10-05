@@ -17,8 +17,14 @@ export const SCRIDER_TEXT_INDENT_KEY = 'scrider-text-indent';
 /** Block tags that receive line spacing (not headings). */
 export const LINE_HEIGHT_BLOCK_TAGS = new Set(['p', 'li', 'blockquote']);
 
-/** Block tags that receive first-line indent (plain `<p>` only). */
+/** Block tags that receive the document first-line indent (plain `<p>` only). */
 export const TEXT_INDENT_BLOCK_TAGS = new Set(['p']);
+
+/**
+ * Heading tags that honor a per-line `scrider-text-indent` (toolbar). The document
+ * default reaches headings only via heading policy (`headingTextIndent`).
+ */
+export const HEADING_TEXT_INDENT_BLOCK_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
 
 /** Block tags that receive paragraph spacing after (plain `<p>` only). */
 export const PARAGRAPH_SPACING_BLOCK_TAGS = new Set(['p']);
@@ -76,19 +82,22 @@ export function blockLineHeightStyleParts(
  *
  * The block attr wins over the document default (mirrors line-height / margin
  * resolution). The raw block value is a CSS length string (e.g. `1.25cm`).
+ * Headings take the block attr only; their document default is heading policy.
  */
 export function blockTextIndentStyleParts(
   tag: string,
   blockAttributes: AttributeMap | undefined,
   resolved: ResolvedDocumentPresentation | undefined,
 ): string[] {
-  if (!TEXT_INDENT_BLOCK_TAGS.has(tag)) return [];
+  const isHeading = HEADING_TEXT_INDENT_BLOCK_TAGS.has(tag);
+  if (!TEXT_INDENT_BLOCK_TAGS.has(tag) && !isHeading) return [];
 
   const raw = blockAttributes?.[SCRIDER_TEXT_INDENT_KEY];
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
     if (trimmed) return [`text-indent:${trimmed}`];
   }
+  if (isHeading) return [];
 
   if (resolved?.textIndentCm !== undefined) {
     return [`text-indent:${resolved.textIndentCm}cm`];

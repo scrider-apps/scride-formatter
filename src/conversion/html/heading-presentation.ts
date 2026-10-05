@@ -9,6 +9,8 @@ import type { AttributeMap } from '@scrider/delta';
 
 import type { ScriderDocumentMetadata } from '../../schema/document-metadata';
 
+import { SCRIDER_TEXT_INDENT_KEY } from './block-presentation';
+
 export type HeaderLevel = 1 | 2 | 3 | 4 | 5 | 6;
 export type HeaderSizeMap = Readonly<Record<HeaderLevel, string>>;
 export type HeaderSizePresetName = 'scrider' | 'google' | 'word' | 'browser' | 'githubEm';
@@ -64,6 +66,8 @@ export interface ResolvedHeadingPolicy {
   /** When set and `auto` is false, emit font-size on `hN` when Delta has no inline size. */
   sizePreset: HeaderSizePresetName | undefined;
   auto: boolean;
+  /** Document first-line indent in cm, set only when `headingTextIndent` is on. */
+  textIndentCm: number | undefined;
 }
 
 const HEADING_TAGS = new Set(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']);
@@ -90,12 +94,29 @@ export function resolveHeadingPolicy(
     !auto && typeof presetRaw === 'string' && isHeaderSizePresetName(presetRaw)
       ? presetRaw
       : undefined;
+  const textIndentCm =
+    metadata.headingTextIndent === true &&
+    typeof metadata.textIndentCm === 'number' &&
+    metadata.textIndentCm > 0
+      ? metadata.textIndentCm
+      : undefined;
 
-  if (align === undefined && !bold && sizePreset === undefined && !auto) {
+  if (
+    align === undefined &&
+    !bold &&
+    sizePreset === undefined &&
+    !auto &&
+    textIndentCm === undefined
+  ) {
     return undefined;
   }
 
-  return { align, bold, sizePreset, auto };
+  return { align, bold, sizePreset, auto, textIndentCm };
+}
+
+/** First-line indent only makes sense on start-aligned text. */
+function alignAllowsTextIndent(align: string | undefined): boolean {
+  return align === undefined || align === '' || align === 'left' || align === 'justify';
 }
 
 function headingLevelFromTag(tag: string): HeaderLevel | undefined {
@@ -138,6 +159,16 @@ export function headingPolicyStyleParts(
   if (policy.sizePreset) {
     const size = HEADER_SIZE_PRESETS[policy.sizePreset][level];
     if (size) parts.push(`font-size: ${size}`);
+  }
+
+  const effectiveAlign =
+    typeof bakedAlign === 'string' && bakedAlign.length > 0 ? bakedAlign : policy.align;
+  if (
+    policy.textIndentCm !== undefined &&
+    blockAttributes?.[SCRIDER_TEXT_INDENT_KEY] === undefined &&
+    alignAllowsTextIndent(effectiveAlign)
+  ) {
+    parts.push(`text-indent:${policy.textIndentCm}cm`);
   }
 
   return parts;

@@ -40,6 +40,7 @@ export {
 export {
   SCRIDER_TEXT_INDENT_KEY,
   TEXT_INDENT_BLOCK_TAGS,
+  HEADING_TEXT_INDENT_BLOCK_TAGS,
   blockTextIndentStyleParts,
 } from './block-presentation';
 export {

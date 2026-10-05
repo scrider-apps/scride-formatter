@@ -164,6 +164,80 @@ describe('deltaToHtml documentMetadata', () => {
     expect(html).not.toMatch(/font-size:/);
   });
 
+  it('does not indent headings from textIndentCm alone', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 2 }).insert('Body').insert('\n');
+
+    const html = deltaToHtml(delta, { documentMetadata: { textIndentCm: 1.25 } });
+
+    expect(html).toMatch(/<p[^>]*text-indent:1\.25cm/);
+    expect(html).not.toMatch(/<h2[^>]*text-indent/);
+  });
+
+  it('indents headings when headingTextIndent is on', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 2 }).insert('Body').insert('\n');
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: { textIndentCm: 1.25, headingTextIndent: true },
+    });
+
+    expect(html).toMatch(/<h2[^>]*text-indent:1\.25cm/);
+    expect(html).toMatch(/<p[^>]*text-indent:1\.25cm/);
+  });
+
+  it('headingTextIndent is a no-op without textIndentCm', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 1 });
+
+    const withFlag = deltaToHtml(delta, { documentMetadata: { headingTextIndent: true } });
+
+    expect(withFlag).toBe(deltaToHtml(delta));
+  });
+
+  it('skips heading indent on center / right aligned headings', () => {
+    const delta = new Delta()
+      .insert('Centered')
+      .insert('\n', { header: 1 })
+      .insert('Right')
+      .insert('\n', { header: 2, align: 'right' });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: { textIndentCm: 1.25, headingTextIndent: true, headingAlign: 'center' },
+    });
+
+    expect(html).not.toMatch(/<h1[^>]*text-indent/);
+    expect(html).not.toMatch(/<h2[^>]*text-indent/);
+  });
+
+  it('baked left align keeps heading indent under a centered policy', () => {
+    const delta = new Delta().insert('Title').insert('\n', { header: 3, align: 'left' });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: { textIndentCm: 1, headingTextIndent: true, headingAlign: 'center' },
+    });
+
+    expect(html).toMatch(/<h3[^>]*text-indent:1cm/);
+  });
+
+  it('per-line scrider-text-indent on a heading wins over heading policy', () => {
+    const delta = new Delta()
+      .insert('Title')
+      .insert('\n', { header: 2, 'scrider-text-indent': '2cm' });
+
+    const html = deltaToHtml(delta, {
+      documentMetadata: { textIndentCm: 1.25, headingTextIndent: true },
+    });
+
+    expect(html).toMatch(/<h2[^>]*text-indent:2cm/);
+    expect(html).not.toMatch(/text-indent:1\.25cm/);
+  });
+
+  it('per-line scrider-text-indent on a heading applies without heading policy', () => {
+    const delta = new Delta()
+      .insert('Title')
+      .insert('\n', { header: 2, 'scrider-text-indent': '1.25cm' });
+
+    expect(deltaToHtml(delta)).toMatch(/<h2[^>]*text-indent:1\.25cm/);
+  });
+
   it('uses metadata.tablePresentation when tablePresentation option is omitted', () => {
     const delta = new Delta()
       .insert('A')

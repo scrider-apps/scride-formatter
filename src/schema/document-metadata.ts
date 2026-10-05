@@ -65,6 +65,12 @@ export interface ScriderDocumentMetadata {
    * Editor: `data-scrider-heading-decoration`. Export: PDF/HTML vertical rhythm + rules.
    */
   headingDecoration?: 'none' | 'scrider' | 'github';
+  /**
+   * When true, `h1`–`h6` also get the document first-line indent
+   * ({@link textIndentCm}). Off by default: body indent does not move headings.
+   * Never applied to center / right aligned headings.
+   */
+  headingTextIndent?: boolean;
   /** Default document font family (bare family name, e.g. `Georgia`). */
   defaultFont?: string;
   /** Default document font size as a CSS length, e.g. `12pt`. */
