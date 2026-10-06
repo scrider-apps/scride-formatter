@@ -28,6 +28,10 @@ export interface DocumentPresentation {
   textIndentCm?: number;
   /** Extra left padding on top-level `<ul>`/`<ol>` — shifts marker + text as a block. */
   listBlockIndentCm?: number;
+  /** Top-level list shift. See {@link ScriderDocumentMetadata.listLeftIndent}. */
+  listLeftIndent?: 'text' | 'marker';
+  /** Vertical margin around a top-level list. Omitted = editor default 0.5em. */
+  listIntervalIndent?: '1em' | '1.5em';
 }
 
 export interface ResolvedDocumentPresentation {
@@ -36,6 +40,8 @@ export interface ResolvedDocumentPresentation {
   paragraphSpacingBeforeEm: number | undefined;
   textIndentCm: number | undefined;
   listBlockIndentCm: number | undefined;
+  listLeftIndent: 'text' | 'marker' | undefined;
+  listIntervalIndent: '1em' | '1.5em' | undefined;
 }
 
 export function resolveDocumentPresentation(
@@ -55,6 +61,14 @@ export function resolveDocumentPresentation(
     typeof presentation.listBlockIndentCm === 'number' && presentation.listBlockIndentCm > 0
       ? presentation.listBlockIndentCm
       : undefined;
+  const listLeftIndent =
+    presentation.listLeftIndent === 'text' || presentation.listLeftIndent === 'marker'
+      ? presentation.listLeftIndent
+      : undefined;
+  const listIntervalIndent =
+    presentation.listIntervalIndent === '1em' || presentation.listIntervalIndent === '1.5em'
+      ? presentation.listIntervalIndent
+      : undefined;
   const paragraphSpacingAfterEm =
     typeof presentation.paragraphSpacingAfterEm === 'number' &&
     Number.isFinite(presentation.paragraphSpacingAfterEm) &&
@@ -73,7 +87,9 @@ export function resolveDocumentPresentation(
     paragraphSpacingAfterEm === undefined &&
     paragraphSpacingBeforeEm === undefined &&
     textIndentCm === undefined &&
-    listBlockIndentCm === undefined
+    listBlockIndentCm === undefined &&
+    listLeftIndent === undefined &&
+    listIntervalIndent === undefined
   ) {
     return undefined;
   }
@@ -84,6 +100,8 @@ export function resolveDocumentPresentation(
     paragraphSpacingBeforeEm,
     textIndentCm,
     listBlockIndentCm,
+    listLeftIndent,
+    listIntervalIndent,
   };
 }
 
@@ -117,6 +135,12 @@ export function documentMetadataToPresentation(
   if (typeof metadata.listBlockIndentCm === 'number') {
     presentation.listBlockIndentCm = metadata.listBlockIndentCm;
   }
+  if (metadata.listLeftIndent === 'text' || metadata.listLeftIndent === 'marker') {
+    presentation.listLeftIndent = metadata.listLeftIndent;
+  }
+  if (metadata.listIntervalIndent === '1em' || metadata.listIntervalIndent === '1.5em') {
+    presentation.listIntervalIndent = metadata.listIntervalIndent;
+  }
 
   return Object.keys(presentation).length > 0 ? presentation : undefined;
 }
@@ -124,12 +148,42 @@ export function documentMetadataToPresentation(
 /** Block tags that receive document first-line indent. */
 const TEXT_INDENT_TAGS = new Set(['p']);
 
-/** Extra padding on top-level `<ul>`/`<ol>` — shifts marker + text (list block indent). */
+/** One tab. `marker` shifts the whole list by this; `text` is this minus the 1.5em gutter. */
+const LIST_LEFT_TAB = '2em';
+const LIST_LEFT_TEXT = '0.5em';
+
+/**
+ * Extra padding and margin on top-level `<ul>`/`<ol>`.
+ * List-block cm shifts marker + text. Left indent stacks on that margin
+ * (`marker` = 2em, `text` = 2em − 1.5em gutter). Interval replaces the
+ * vertical margin only when set to 1em or 1.5em.
+ */
 export function documentPresentationListWrapperStyleParts(
   resolved: ResolvedDocumentPresentation | undefined,
 ): string[] {
-  if (!resolved?.listBlockIndentCm) return [];
-  return [`padding-left:1.25em`, `margin-left:${resolved.listBlockIndentCm}cm`];
+  if (!resolved) return [];
+  const parts: string[] = [];
+  if (resolved.listBlockIndentCm) {
+    parts.push('padding-left:1.25em');
+  }
+  const leftEm =
+    resolved.listLeftIndent === 'marker'
+      ? LIST_LEFT_TAB
+      : resolved.listLeftIndent === 'text'
+        ? LIST_LEFT_TEXT
+        : undefined;
+  if (resolved.listBlockIndentCm !== undefined && leftEm !== undefined) {
+    parts.push(`margin-left:calc(${resolved.listBlockIndentCm}cm + ${leftEm})`);
+  } else if (resolved.listBlockIndentCm !== undefined) {
+    parts.push(`margin-left:${resolved.listBlockIndentCm}cm`);
+  } else if (leftEm !== undefined) {
+    parts.push(`margin-left:${leftEm}`);
+  }
+  if (resolved.listIntervalIndent === '1em' || resolved.listIntervalIndent === '1.5em') {
+    parts.push(`margin-top:${resolved.listIntervalIndent}`);
+    parts.push(`margin-bottom:${resolved.listIntervalIndent}`);
+  }
+  return parts;
 }
 
 /**

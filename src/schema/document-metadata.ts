@@ -37,13 +37,22 @@ export interface ScriderDocumentMetadata {
   /** Extra left indent in cm on top-level `<ul>`/`<ol>` (shifts marker + text). */
   listBlockIndentCm?: number;
   /**
-   * GFM-style extra left indent for list markers (em of the document size).
-   * Default on when omitted. `false` aligns markers with paragraph text.
+   * Top-level list shift, in em of the document size. `text` puts the body on
+   * one 2em tab (markers hang in the gutter, 2em − 1.5em). `marker` shifts the
+   * whole list by one 2em tab. Omitted = no extra left indent.
+   * Stacks with {@link listBlockIndentCm}.
    */
-  listLeftIndent?: boolean;
+  listLeftIndent?: 'text' | 'marker';
+  /**
+   * Vertical margin around a top-level list. Omitted = the editor default
+   * (0.5em). `1em` and `1.5em` replace that margin. Stacks with
+   * {@link listBlockIndentCm}.
+   */
+  listIntervalIndent?: '1em' | '1.5em';
   /**
    * Extra space above/below a list block (beyond body line-height).
-   * Default on when omitted.
+   * Default on when omitted. Unused by projection; interval lives in
+   * {@link listIntervalIndent}.
    */
   listTopPadding?: boolean;
   /** Document heading horizontal alignment policy. Presence = policy on. */

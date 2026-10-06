@@ -94,6 +94,29 @@ describe('deltaToHtml documentMetadata', () => {
     expect(viaMetadata).toBe(viaPresentation);
   });
 
+  it('projects list left indent and interval onto top-level lists', () => {
+    const metadata: ScriderDocumentMetadata = {
+      listLeftIndent: 'marker',
+      listIntervalIndent: '1.5em',
+    };
+
+    const html = deltaToHtml(listDelta(), { documentMetadata: metadata });
+
+    expect(html).toMatch(/margin-left:2em/);
+    expect(html).toMatch(/margin-top:1\.5em/);
+    expect(html).toMatch(/margin-bottom:1\.5em/);
+    expect(html).not.toMatch(/padding-left/);
+  });
+
+  it('stacks list left indent on list block cm', () => {
+    const html = deltaToHtml(listDelta(), {
+      documentMetadata: { listBlockIndentCm: 0.75, listLeftIndent: 'text' },
+    });
+
+    expect(html).toMatch(/margin-left:calc\(0\.75cm \+ 0\.5em\)/);
+    expect(html).toMatch(/padding-left:1\.25em/);
+  });
+
   it('gives explicit documentPresentation precedence over documentMetadata', () => {
     const html = deltaToHtml(paragraphs(), {
       documentPresentation: { lineSpacing: 2 },
