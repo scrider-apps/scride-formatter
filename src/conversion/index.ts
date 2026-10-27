@@ -102,6 +102,21 @@ export {
   type EmbedRenderer,
 } from './html';
 
+// Accordion (line-attribute model)
+export {
+  ACCORDION_ATTR,
+  ACCORDION_BODY_ATTR,
+  ACCORDION_COLLAPSED_ATTR,
+  ACCORDION_EXCLUSIVE_BLOCK_ATTRS,
+  AccordionLineResolver,
+  buildAccordionTree,
+  hasAccordionAttributes,
+  normalizeAccordionDelta,
+  normalizeAccordionLineAttributes,
+  type AccordionLineInfo,
+  type AccordionNode,
+} from './accordion';
+
 // Slugify utility
 export { slugify, slugifyWithDedup } from './utils/slugify';
 

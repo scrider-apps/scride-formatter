@@ -25,6 +25,14 @@ import {
 import { escapeHtml, toVideoEmbedUrl } from '../html/config';
 import { deltaToHtml } from '../html/delta-to-html';
 import type { CodeWidgetEmbedUrlFn } from '../../schema/Format';
+import {
+  ACCORDION_ATTR,
+  ACCORDION_BODY_ATTR,
+  ACCORDION_COLLAPSED_ATTR,
+  buildAccordionTree,
+  hasAccordionAttributes,
+  type AccordionNode,
+} from '../accordion';
 
 /**
  * Options for Delta → Markdown conversion
@@ -206,6 +214,41 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     const attrs = line.attributes;
     const isBlockquote = !!attrs.blockquote;
 
+    // Accordion run → nested <details>; wins over other block formats.
+    if (hasAccordionAttributes(attrs)) {
+      const accordionLines: Line[] = [];
+      for (let j = i; j < lines.length; j++) {
+        const next = lines[j];
+        if (!next || !hasAccordionAttributes(next.attributes)) break;
+        accordionLines.push(next);
+      }
+      const lastLine = result[result.length - 1];
+      if (lastLine !== undefined && lastLine !== '') result.push('');
+      renderAccordionMarkdown(
+        buildAccordionTree(accordionLines, (l) => l.attributes),
+        result,
+        (l) =>
+          renderLineContent(
+            l.ops,
+            embedRenderers,
+            false,
+            useLatexDelimiters,
+            blockHandlers,
+            prettyHtml,
+            registry,
+            softBreakStyle,
+            false,
+            codeWidgetEmbedUrl,
+          ),
+        (l) => renderAccordionSummaryHtml(l, registry, codeWidgetEmbedUrl),
+      );
+      i += accordionLines.length - 1;
+      lastListType = null;
+      orderedListIndex = 0;
+      lastWasBlockquote = false;
+      continue;
+    }
+
     // Check for table - needs special handling (group adjacent table lines)
     if (typeof attrs['table-row'] === 'number' && typeof attrs['table-col'] === 'number') {
       const tableLines = collectAdjacentTableLines(lines, i);
@@ -338,6 +381,47 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
 }
 
 /**
+ * Accordion tree → Markdown lines. Titles become `<details>` + `<summary>`
+ * (inline HTML), body lines are Markdown paragraphs separated by blank lines
+ * so CommonMark ends each HTML block; an empty body line is `<br>`.
+ */
+function renderAccordionMarkdown(
+  nodes: AccordionNode<Line>[],
+  result: string[],
+  renderContent: (line: Line) => string,
+  renderSummary: (line: Line) => string,
+): void {
+  for (const node of nodes) {
+    if (node.kind === 'line') {
+      result.push(renderContent(node.line) || '<br>');
+      result.push('');
+      continue;
+    }
+    result.push(node.info.collapsed ? '<details>' : '<details open>');
+    result.push(`<summary>${renderSummary(node.line)}</summary>`);
+    result.push('');
+    renderAccordionMarkdown(node.children, result, renderContent, renderSummary);
+    result.push('</details>');
+    result.push('');
+  }
+}
+
+/** Title line as inline HTML for `<summary>` (Markdown is not parsed there). */
+function renderAccordionSummaryHtml(
+  line: Line,
+  registry: Registry | undefined,
+  codeWidgetEmbedUrl: CodeWidgetEmbedUrlFn | undefined,
+): string {
+  const html = deltaToHtml(new Delta([...line.ops, { insert: '\n' }]), {
+    ...(registry ? { registry } : {}),
+    ...(codeWidgetEmbedUrl ? { codeWidgetEmbedUrl } : {}),
+  });
+  const match = /^<p[^>]*>([\s\S]*)<\/p>$/.exec(html);
+  const inner = match ? match[1]! : html;
+  return inner === '<br>' ? '' : inner;
+}
+
+/**
  * Check if attributes contain any block formatting
  */
 function hasBlockFormat(attrs: AttributeMap): boolean {
@@ -391,6 +475,9 @@ function splitIntoLines(ops: Op[]): Line[] {
                 'table-col',
                 'table-header',
                 'table-col-align',
+                ACCORDION_ATTR,
+                ACCORDION_COLLAPSED_ATTR,
+                ACCORDION_BODY_ATTR,
               ].includes(key)
             ) {
               inlineAttrs[key] = value;

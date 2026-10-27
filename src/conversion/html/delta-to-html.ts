@@ -47,6 +47,14 @@ import {
   type TablePresentation,
 } from './table-presentation';
 import { collectAdjacentTableLines } from '../markdown/table-region';
+import {
+  AccordionLineResolver,
+  buildAccordionTree,
+  hasAccordionAttributes,
+  normalizeAccordionLineAttributes,
+  type AccordionLineInfo,
+  type AccordionNode,
+} from '../accordion';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
 export type { ResolvedHeadingPolicy };
@@ -156,6 +164,18 @@ export interface DeltaToHtmlOptions {
    * host — inject e.g. `@scrider/editor-react`'s `toCodeWidgetEmbedUrl`.
    */
   codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn;
+
+  /**
+   * Accordion markup (`accordion` / `accordion-body` lines).
+   *
+   * - `details`: nested `<details><summary>` — self-contained, works without CSS/JS.
+   * - `flat`: one `<p>` per line with `data-accordion*` attributes and computed
+   *   `data-accordion-hidden` — for contenteditable, where the host draws the
+   *   controls and hides collapsed scopes via CSS.
+   *
+   * @default 'details' (`editor` profile: 'flat')
+   */
+  accordionMarkup?: 'details' | 'flat';
 }
 
 /**
@@ -217,6 +237,35 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!line) continue;
+
+    // Accordion lines win over table / quote / code formats (text-only model).
+    if (hasAccordionAttributes(line.attributes)) {
+      html += closeAllLists(listStack, pretty);
+      listStack = [];
+      counters = [];
+
+      const accordionLines = collectAccordionLines(lines, i);
+      html +=
+        options.accordionMarkup === 'flat'
+          ? renderAccordionFlat(
+              accordionLines,
+              embedRenderers,
+              pretty,
+              blockHandlers,
+              options,
+              resolvedDocumentPresentation,
+            )
+          : renderAccordionDetails(
+              accordionLines,
+              embedRenderers,
+              pretty,
+              blockHandlers,
+              options,
+              resolvedDocumentPresentation,
+            );
+      i += accordionLines.length - 1;
+      continue;
+    }
 
     // Handle table grouping (adjacent lines with table-row attribute)
     if (isTableLine(line)) {
@@ -397,6 +446,7 @@ function stripPresentationForEditor(options: DeltaToHtmlOptions): DeltaToHtmlOpt
   delete rest.documentPresentation;
   delete rest.documentMetadata;
   delete rest.tablePresentation;
+  rest.accordionMarkup ??= 'flat';
   return rest;
 }
 
@@ -772,6 +822,110 @@ function collectBlockquoteLines(lines: LineContent[], startIndex: number): LineC
   }
 
   return quoteLines;
+}
+
+/** Collect consecutive lines that carry `accordion` or `accordion-body`. */
+function collectAccordionLines(lines: LineContent[], startIndex: number): LineContent[] {
+  const result: LineContent[] = [];
+
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || !hasAccordionAttributes(line.attributes)) break;
+    result.push(line);
+  }
+
+  return result;
+}
+
+type EmbedRendererMap = Record<string, (value: unknown, attrs?: Record<string, unknown>) => string>;
+
+/**
+ * Editor markup: one `<p>` per line, levels resolved, collapsed scopes marked
+ * `data-accordion-hidden`. Orphan body lines render as plain paragraphs.
+ */
+function renderAccordionFlat(
+  accordionLines: LineContent[],
+  embedRenderers: EmbedRendererMap,
+  pretty: boolean,
+  blockHandlers: BlockHandlerRegistry | undefined,
+  options: DeltaToHtmlOptions | undefined,
+  resolvedDocumentPresentation: ReturnType<typeof resolveDocumentPresentation> | undefined,
+): string {
+  const resolver = new AccordionLineResolver();
+  const nl = pretty ? '\n' : '';
+  let html = '';
+
+  for (const line of accordionLines) {
+    const info = resolver.next(line.attributes);
+    const attrs = normalizeAccordionLineAttributes(line.attributes, info);
+    const content = renderLineContent(line.ops, embedRenderers, blockHandlers, options) || '<br>';
+    const styleAttr = getBlockStyleAttribute('p', attrs, resolvedDocumentPresentation);
+
+    if (!info) {
+      html += `<p${styleAttr}>${content}</p>${nl}`;
+      continue;
+    }
+
+    let markers =
+      info.role === 'title'
+        ? ` class="scrider-accordion-title" data-accordion="${info.level}"`
+        : ` class="scrider-accordion-body" data-accordion-body="${info.level}"`;
+    if (info.collapsed) markers += ' data-accordion-collapsed="true"';
+    if (info.hidden) markers += ' data-accordion-hidden="true"';
+    html += `<p${markers}${styleAttr}>${content}</p>${nl}`;
+  }
+
+  return html;
+}
+
+/**
+ * Export markup: nested `<details class="scrider-accordion">`, the title in
+ * `<summary>`, body lines as `<p>`. Expanded titles get `open`.
+ */
+function renderAccordionDetails(
+  accordionLines: LineContent[],
+  embedRenderers: EmbedRendererMap,
+  pretty: boolean,
+  blockHandlers: BlockHandlerRegistry | undefined,
+  options: DeltaToHtmlOptions | undefined,
+  resolvedDocumentPresentation: ReturnType<typeof resolveDocumentPresentation> | undefined,
+): string {
+  const nl = pretty ? '\n' : '';
+
+  const renderParagraph = (
+    line: LineContent,
+    depth: number,
+    info: AccordionLineInfo | null,
+  ): string => {
+    const attrs = normalizeAccordionLineAttributes(line.attributes, info);
+    const content = renderLineContent(line.ops, embedRenderers, blockHandlers, options) || '<br>';
+    const styleAttr = getBlockStyleAttribute('p', attrs, resolvedDocumentPresentation);
+    return `${pretty ? '  '.repeat(depth) : ''}<p${styleAttr}>${content}</p>${nl}`;
+  };
+
+  const renderNodes = (nodes: AccordionNode<LineContent>[], depth: number): string => {
+    let html = '';
+    for (const node of nodes) {
+      if (node.kind === 'line') {
+        html += renderParagraph(node.line, depth, node.info);
+        continue;
+      }
+      const pad = pretty ? '  '.repeat(depth) : '';
+      const innerPad = pretty ? '  '.repeat(depth + 1) : '';
+      const open = node.info.collapsed ? '' : ' open';
+      const summary = renderLineContent(node.line.ops, embedRenderers, blockHandlers, options);
+      html += `${pad}<details class="scrider-accordion" data-level="${node.info.level}"${open}>${nl}`;
+      html += `${innerPad}<summary>${summary}</summary>${nl}`;
+      html += renderNodes(node.children, depth + 1);
+      html += `${pad}</details>${nl}`;
+    }
+    return html;
+  };
+
+  return renderNodes(
+    buildAccordionTree(accordionLines, (line) => line.attributes),
+    0,
+  );
 }
 
 /**

@@ -61,6 +61,10 @@ export {
   superscriptFormat,
   underlineFormat,
   // Block
+  ACCORDION_MAX_LEVEL,
+  accordionBodyFormat,
+  accordionCollapsedFormat,
+  accordionFormat,
   alignFormat,
   blockquoteFormat,
   codeBlockFormat,
@@ -171,11 +175,26 @@ export {
   isTableNewlineOp,
   tableCellCoordsFromAttributes,
   tableCellCoordsFromOp,
+  // Accordion
+  ACCORDION_ATTR,
+  ACCORDION_BODY_ATTR,
+  ACCORDION_COLLAPSED_ATTR,
+  ACCORDION_EXCLUSIVE_BLOCK_ATTRS,
+  AccordionLineResolver,
+  buildAccordionTree,
+  hasAccordionAttributes,
+  normalizeAccordionDelta,
+  normalizeAccordionLineAttributes,
   // Slugify utility
   slugify,
   slugifyWithDedup,
 } from './conversion';
-export type { TableCellCoords, TableRegion } from './conversion';
+export type {
+  AccordionLineInfo,
+  AccordionNode,
+  TableCellCoords,
+  TableRegion,
+} from './conversion';
 
 /**
  * Convenience alias for ops in a "content" Delta (a snapshot, not a change).

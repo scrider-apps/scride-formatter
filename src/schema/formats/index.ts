@@ -18,6 +18,10 @@ export {
 
 // Block formats
 export {
+  ACCORDION_MAX_LEVEL,
+  accordionBodyFormat,
+  accordionCollapsedFormat,
+  accordionFormat,
   alignFormat,
   blockquoteFormat,
   codeBlockFormat,

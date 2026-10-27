@@ -21,6 +21,9 @@ import {
 
 // Block formats
 import {
+  accordionBodyFormat,
+  accordionCollapsedFormat,
+  accordionFormat,
   alignFormat,
   blockquoteFormat,
   codeBlockFormat,
@@ -89,6 +92,9 @@ export const defaultBlockFormats: Format[] = [
   tableColFormat,
   tableHeaderFormat,
   tableColAlignFormat,
+  accordionFormat,
+  accordionCollapsedFormat,
+  accordionBodyFormat,
 ];
 
 /**

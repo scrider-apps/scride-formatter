@@ -1,3 +1,10 @@
+export {
+  ACCORDION_MAX_LEVEL,
+  accordionBodyFormat,
+  accordionCollapsedFormat,
+  accordionFormat,
+} from './accordion';
+
 export { alignFormat } from './align';
 export type { AlignType } from './align';
 

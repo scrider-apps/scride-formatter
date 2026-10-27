@@ -9,6 +9,12 @@ import type { AttributeMap } from '@scrider/delta';
 import type { BlockHandlerRegistry } from '../../schema/BlockHandlerRegistry';
 import { htmlToDelta } from '../html/html-to-delta';
 import { normalizeImportedTableOps } from './table-header-normalize';
+import { ACCORDION_MAX_LEVEL } from '../../schema/formats/block/accordion';
+import { ACCORDION_ATTR, ACCORDION_BODY_ATTR, ACCORDION_COLLAPSED_ATTR } from '../accordion';
+
+const ACCORDION_TAG_RE = /<\/?details\b|<summary\b/i;
+const ACCORDION_TOKEN_RE =
+  /<details\b([^>]*)>|<\/details\s*>|<summary\b[^>]*>([\s\S]*?)<\/summary\s*>/;
 
 /**
  * Options for Markdown → Delta conversion
@@ -377,6 +383,10 @@ function astToDelta(
   // (and never re-fuse on the next render). Conversion-local → deterministic.
   let codeBlockIdSeq = 0;
 
+  // Open `<details>` at root level. Their tags arrive as separate `html` nodes
+  // around Markdown body content; every line in between is accordion body.
+  const accordionStack: { level: number; collapsed: boolean; titled: boolean }[] = [];
+
   const context: ParserContext = {
     delta,
     pushText(text: string, attrs?: AttributeMap) {
@@ -418,6 +428,7 @@ function astToDelta(
         }
         pendingText = '';
       }
+      attrs = withAccordionBody(attrs);
       if (attrs && Object.keys(attrs).length > 0) {
         delta.insert('\n', attrs);
       } else {
@@ -536,7 +547,7 @@ function astToDelta(
 
     switch (node.type) {
       case 'root':
-        processChildren(node, blockAttrs);
+        processRootChildren(node, blockAttrs);
         break;
 
       case 'paragraph':
@@ -911,8 +922,112 @@ function astToDelta(
 
     // Merge ops from block conversion into current delta
     for (const op of blockDelta.ops) {
-      delta.push(op);
+      if (
+        accordionStack.length === 0 ||
+        !isInsert(op) ||
+        typeof op.insert !== 'string' ||
+        !op.insert.includes('\n')
+      ) {
+        delta.push(op);
+        continue;
+      }
+      const parts = op.insert.split('\n');
+      parts.forEach((text, i) => {
+        if (text) delta.insert(text, op.attributes);
+        if (i < parts.length - 1) delta.insert('\n', withAccordionBody(op.attributes));
+      });
     }
+  }
+
+  /** Adds `accordion-body` of the innermost open `<details>` to a line. */
+  function withAccordionBody(attrs: AttributeMap | undefined): AttributeMap | undefined {
+    const top = accordionStack[accordionStack.length - 1];
+    if (
+      !top ||
+      attrs?.[ACCORDION_ATTR] !== undefined ||
+      attrs?.[ACCORDION_BODY_ATTR] !== undefined
+    ) {
+      return attrs;
+    }
+    return { ...attrs, [ACCORDION_BODY_ATTR]: top.level };
+  }
+
+  function accordionTitleAttrs(entry: { level: number; collapsed: boolean }): AttributeMap {
+    return entry.collapsed
+      ? { [ACCORDION_ATTR]: entry.level, [ACCORDION_COLLAPSED_ATTR]: true }
+      : { [ACCORDION_ATTR]: entry.level };
+  }
+
+  /** Body content before `<summary>` (or none at all) gets an empty title. */
+  function ensureAccordionTitle(): void {
+    const top = accordionStack[accordionStack.length - 1];
+    if (!top || top.titled) return;
+    flushInlineText();
+    delta.insert('\n', accordionTitleAttrs(top));
+    top.titled = true;
+  }
+
+  function processRootChildren(node: MdastNode, blockAttrs: AttributeMap): void {
+    for (const child of node.children ?? []) {
+      if (child.type === 'html' && ACCORDION_TAG_RE.test(child.value ?? '')) {
+        processAccordionHtml(child.value ?? '');
+        continue;
+      }
+      ensureAccordionTitle();
+      processNode(child, blockAttrs);
+    }
+    while (accordionStack.length > 0) {
+      ensureAccordionTitle();
+      accordionStack.pop();
+    }
+  }
+
+  /** Splits an `html` node on `<details>` / `<summary>` / `</details>` tokens. */
+  function processAccordionHtml(html: string): void {
+    const processSegment = (segment: string): void => {
+      if (!segment.trim()) return;
+      ensureAccordionTitle();
+      processBlockHtml(segment);
+    };
+
+    const tokens = new RegExp(ACCORDION_TOKEN_RE.source, 'gi');
+    let last = 0;
+    for (let match = tokens.exec(html); match; match = tokens.exec(html)) {
+      processSegment(html.slice(last, match.index));
+      last = match.index + match[0].length;
+      const token = match[0].toLowerCase();
+
+      if (token.startsWith('<details')) {
+        ensureAccordionTitle();
+        accordionStack.push({
+          level: Math.min(accordionStack.length, ACCORDION_MAX_LEVEL),
+          collapsed: !/\bopen\b/i.test(match[1] ?? ''),
+          titled: false,
+        });
+      } else if (token.startsWith('<summary')) {
+        const top = accordionStack[accordionStack.length - 1];
+        if (!top || top.titled) {
+          processSegment(match[2] ?? '');
+          continue;
+        }
+        flushInlineText();
+        for (const op of htmlToDelta(match[2] ?? '').ops) {
+          if (!isInsert(op)) continue;
+          if (typeof op.insert !== 'string') {
+            delta.insert(op.insert, op.attributes);
+            continue;
+          }
+          const text = op.insert.replace(/\n/g, '');
+          if (text) delta.insert(text, op.attributes);
+        }
+        delta.insert('\n', accordionTitleAttrs(top));
+        top.titled = true;
+      } else if (accordionStack.length > 0) {
+        ensureAccordionTitle();
+        accordionStack.pop();
+      }
+    }
+    processSegment(html.slice(last));
   }
 
   /**
