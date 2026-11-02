@@ -433,6 +433,37 @@ describe('deltaToHtml', () => {
 
       expect(html).not.toContain('data-number');
     });
+
+    it('renders alpha items as A) B) and keeps ordered numbers hierarchical', () => {
+      const delta = new Delta()
+        .insert('Question\n', { list: 'ordered' })
+        .insert('Yes\n', { list: 'alpha', indent: 1 })
+        .insert('No\n', { list: 'alpha', indent: 1 })
+        .insert('Next\n', { list: 'ordered' });
+
+      const html = deltaToHtml(delta, { hierarchicalNumbers: true });
+
+      expect(html).toContain('data-number="1"');
+      expect(html).toContain('data-number="2"');
+      expect(html).not.toContain('data-number="1.1"');
+      expect(html).toContain('data-list="alpha"');
+      expect(html).toContain('data-marker="A"');
+      expect(html).toContain('data-marker="B"');
+    });
+
+    it('wraps a quiz plate and stamps zone attributes', () => {
+      const zone = { 'quiz-id': 'q1', 'quiz-view': 'text' };
+      const delta = new Delta()
+        .insert('Title\n', { ...zone, 'quiz-role': 'title' })
+        .insert('Prompt\n', { ...zone, 'quiz-role': 'questions', list: 'ordered' });
+
+      const html = deltaToHtml(delta, { hierarchicalNumbers: true });
+
+      expect(html).toContain('<div class="scrider-quiz" data-quiz-id="q1" data-quiz-view="text">');
+      expect(html).toContain('data-quiz-role="title"');
+      expect(html).toContain('data-quiz-role="questions"');
+      expect(html.endsWith('</div>')).toBe(true);
+    });
   });
 
   describe('alignment', () => {

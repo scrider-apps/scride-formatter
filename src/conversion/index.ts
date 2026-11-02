@@ -117,6 +117,21 @@ export {
   type AccordionNode,
 } from './accordion';
 
+export {
+  QUIZ_ID_ATTR,
+  QUIZ_ROLE_ATTR,
+  QUIZ_VIEW_ATTR,
+  QUIZ_ROLES,
+  QUIZ_VIEWS,
+  alphaMarker,
+  quizMarkerAttrs,
+  readQuizId,
+  readQuizRole,
+  readQuizView,
+  type QuizRole,
+  type QuizView,
+} from './quiz';
+
 // Slugify utility
 export { slugify, slugifyWithDedup } from './utils/slugify';
 

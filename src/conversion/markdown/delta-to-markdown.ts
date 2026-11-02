@@ -33,6 +33,7 @@ import {
   hasAccordionAttributes,
   type AccordionNode,
 } from '../accordion';
+import { readQuizId } from '../quiz';
 
 /**
  * Options for Delta → Markdown conversion
@@ -214,6 +215,26 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
     const attrs = line.attributes;
     const isBlockquote = !!attrs.blockquote;
 
+    // Quiz plate → the same HTML the editor round-trips (alpha markers + roles).
+    const quizId = readQuizId(attrs);
+    if (quizId) {
+      const quizLines: Line[] = [];
+      for (let j = i; j < lines.length; j++) {
+        const next = lines[j];
+        if (!next || readQuizId(next.attributes) !== quizId) break;
+        quizLines.push(next);
+      }
+      const lastLine = result[result.length - 1];
+      if (lastLine !== undefined && lastLine !== '') result.push('');
+      result.push(quizRunToHtml(quizLines));
+      result.push('');
+      i += quizLines.length - 1;
+      lastListType = null;
+      orderedListIndex = 0;
+      lastWasBlockquote = false;
+      continue;
+    }
+
     // Accordion run → nested <details>; wins over other block formats.
     if (hasAccordionAttributes(attrs)) {
       const accordionLines: Line[] = [];
@@ -331,7 +352,7 @@ export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = 
       if (listType !== lastListType || indent !== lastIndent) {
         orderedListIndex = 0;
       }
-      if (listType === 'ordered') {
+      if (listType === 'ordered' || listType === 'alpha') {
         orderedListIndex++;
       }
     } else {
@@ -404,6 +425,23 @@ function renderAccordionMarkdown(
     result.push('</details>');
     result.push('');
   }
+}
+
+/** One quiz plate as the HTML block `htmlToDelta` already understands. */
+function quizRunToHtml(lines: Line[]): string {
+  const delta = new Delta();
+  for (const line of lines) {
+    for (const op of line.ops) {
+      if (typeof op.insert !== 'string') continue;
+      if (op.attributes && Object.keys(op.attributes).length > 0) {
+        delta.insert(op.insert, op.attributes);
+      } else {
+        delta.insert(op.insert);
+      }
+    }
+    delta.insert('\n', line.attributes);
+  }
+  return deltaToHtml(delta, { hierarchicalNumbers: true });
 }
 
 /** Title line as inline HTML for `<summary>` (Markdown is not parsed there). */

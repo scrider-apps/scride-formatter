@@ -754,4 +754,20 @@ describe('htmlToDelta', () => {
       ]);
     });
   });
+
+  describe('quiz', () => {
+    it('round-trips a plate with ordered questions and alpha options', () => {
+      const zone = { 'quiz-id': 'q1', 'quiz-view': 'interactive' as const };
+      const original = new Delta()
+        .insert('Title\n', { ...zone, 'quiz-role': 'title' })
+        .insert('Prompt\n', { ...zone, 'quiz-role': 'questions', list: 'ordered' })
+        .insert('Yes\n', { ...zone, 'quiz-role': 'questions', list: 'alpha', indent: 1 })
+        .insert('No\n', { ...zone, 'quiz-role': 'questions', list: 'alpha', indent: 1 });
+
+      const html = deltaToHtml(original, { hierarchicalNumbers: true });
+      expect(html).toContain('data-marker="A"');
+      expect(html).toContain('data-marker="B"');
+      expect(deltaToHtml(htmlToDelta(html), { hierarchicalNumbers: true })).toBe(html);
+    });
+  });
 });

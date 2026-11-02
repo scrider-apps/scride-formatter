@@ -77,7 +77,20 @@ export const LIST_TYPE_PREFIX: Record<string, string | ((index: number) => strin
   ordered: (index: number) => `${index + 1}. `,
   checked: '- [x] ',
   unchecked: '- [ ] ',
+  alpha: (index: number) => `${alphaListMarker(index + 1)}) `,
 };
+
+/** 1 → A, 26 → Z, 27 → AA. Matches `alphaMarker` in the quiz module. */
+function alphaListMarker(index: number): string {
+  let n = index;
+  let out = '';
+  while (n > 0) {
+    n -= 1;
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26);
+  }
+  return out || 'A';
+}
 
 /**
  * Generate indent prefix for nested lists

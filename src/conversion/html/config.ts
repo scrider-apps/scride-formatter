@@ -72,10 +72,15 @@ export const LIST_WRAPPER_TAGS: Record<string, string> = {
   bullet: 'ul',
   checked: 'ul',
   unchecked: 'ul',
+  alpha: 'ol',
 };
 
-/** Same HTML wrapper → same list. `bullet` / `checked` / `unchecked` share `<ul>`. */
+/**
+ * Same HTML wrapper → same list. `bullet` / `checked` / `unchecked` share `<ul>`.
+ * `alpha` uses `<ol>` too, but its own family so it does not merge with `ordered`.
+ */
 export function listWrapperFamily(listType: string): string {
+  if (listType === 'alpha') return 'ol-alpha';
   return LIST_WRAPPER_TAGS[listType] || 'ul';
 }
 

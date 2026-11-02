@@ -185,6 +185,16 @@ export {
   hasAccordionAttributes,
   normalizeAccordionDelta,
   normalizeAccordionLineAttributes,
+  QUIZ_ID_ATTR,
+  QUIZ_ROLE_ATTR,
+  QUIZ_VIEW_ATTR,
+  QUIZ_ROLES,
+  QUIZ_VIEWS,
+  alphaMarker,
+  quizMarkerAttrs,
+  readQuizId,
+  readQuizRole,
+  readQuizView,
   // Slugify utility
   slugify,
   slugifyWithDedup,
@@ -192,6 +202,8 @@ export {
 export type {
   AccordionLineInfo,
   AccordionNode,
+  QuizRole,
+  QuizView,
   TableCellCoords,
   TableRegion,
 } from './conversion';

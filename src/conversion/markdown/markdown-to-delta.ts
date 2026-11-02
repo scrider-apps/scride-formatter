@@ -88,6 +88,43 @@ interface MdastNode {
   label?: string;
 }
 
+/** Private marker so `A)` survives remark, which only numbers `1.` / `1)`. */
+const ALPHA_SENTINEL = '\uE000';
+
+/**
+ * Rewrite quiz letter markers into ordered items remark will nest.
+ * Leaves fenced code alone. `htmlToDelta` still owns plates emitted as HTML.
+ */
+function encodeAlphaListMarkers(markdown: string): string {
+  let fence: string | null = null;
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const fenceMatch = /^( {0,3})(`{3,}|~{3,})/.exec(line);
+      if (fenceMatch) {
+        const marker = fenceMatch[2]![0]!;
+        if (fence === null) fence = marker;
+        else if (marker === fence && line.trim().startsWith(fenceMatch[2]!)) fence = null;
+        return line;
+      }
+      if (fence) return line;
+      return line.replace(
+        /^([ \t]*)([A-Z]+)\)[ \t]*(.*)$/,
+        (_match, indent: string, _letter: string, rest: string) =>
+          `${indent}1. ${ALPHA_SENTINEL}${rest}`,
+      );
+    })
+    .join('\n');
+}
+
+function consumeAlphaSentinel(item: MdastNode): boolean {
+  const para = item.children?.find((child) => child.type === 'paragraph');
+  const text = para?.children?.find((child) => child.type === 'text');
+  if (!text?.value?.startsWith(ALPHA_SENTINEL)) return false;
+  text.value = text.value.slice(ALPHA_SENTINEL.length);
+  return true;
+}
+
 /**
  * Custom node handler function
  */
@@ -264,7 +301,7 @@ export async function markdownToDelta(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  const tree = processor.parse(markdown) as MdastNode;
+  const tree = processor.parse(encodeAlphaListMarkers(markdown)) as MdastNode;
 
   return astToDelta(
     tree,
@@ -346,7 +383,7 @@ export function markdownToDeltaSync(markdown: string, options: MarkdownToDeltaOp
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  const tree = processor.parse(markdown) as MdastNode;
+  const tree = processor.parse(encodeAlphaListMarkers(markdown)) as MdastNode;
 
   return astToDelta(
     tree,
@@ -752,8 +789,11 @@ function astToDelta(
     for (const item of node.children) {
       if (item.type !== 'listItem') continue;
 
+      const alpha = consumeAlphaSentinel(item);
       let listType: string;
-      if (item.checked === true) {
+      if (alpha) {
+        listType = 'alpha';
+      } else if (item.checked === true) {
         listType = 'checked';
       } else if (item.checked === false) {
         listType = 'unchecked';

@@ -55,6 +55,7 @@ import {
   type AccordionLineInfo,
   type AccordionNode,
 } from '../accordion';
+import { alphaMarker, quizMarkerAttrs, readQuizId, readQuizView } from '../quiz';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
 export type { ResolvedHeadingPolicy };
@@ -230,6 +231,35 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
 
   // Hierarchical numbering counters: counters[0] = top level, counters[1] = first nested, etc.
   let counters: number[] = [];
+  // Letter markers for `list: "alpha"` (A, B, C). Independent of ordered 1.1.1.
+  let alphaCounters: number[] = [];
+  let openQuizId: string | null = null;
+
+  const closeOpenLists = (): void => {
+    html += closeAllLists(listStack, pretty);
+    listStack = [];
+    counters = [];
+    alphaCounters = [];
+  };
+
+  const closeQuiz = (): void => {
+    if (!openQuizId) return;
+    closeOpenLists();
+    html += '</div>';
+    if (pretty) html += '\n';
+    openQuizId = null;
+  };
+
+  const syncQuiz = (attributes: AttributeMap | undefined): void => {
+    const id = readQuizId(attributes);
+    if (id === openQuizId) return;
+    closeQuiz();
+    if (!id) return;
+    const view = readQuizView(attributes) ?? 'text';
+    html += `<div class="scrider-quiz" data-quiz-id="${escapeHtml(id)}" data-quiz-view="${view}">`;
+    if (pretty) html += '\n';
+    openQuizId = id;
+  };
 
   // Slug deduplication map for anchor links on headings
   const slugUsageMap = new Map<string, number>();
@@ -238,11 +268,14 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
     const line = lines[i];
     if (!line) continue;
 
+    syncQuiz(line.attributes);
+
     // Accordion lines win over table / quote / code formats (text-only model).
     if (hasAccordionAttributes(line.attributes)) {
       html += closeAllLists(listStack, pretty);
       listStack = [];
       counters = [];
+      alphaCounters = [];
 
       const accordionLines = collectAccordionLines(lines, i);
       html +=
@@ -272,6 +305,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       html += closeAllLists(listStack, pretty);
       listStack = [];
       counters = [];
+      alphaCounters = [];
 
       const tableLines = collectAdjacentTableLines(lines, i);
       html += renderTable(tableLines, embedRenderers, pretty, blockHandlers, optionsWithTable);
@@ -288,6 +322,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       html += closeAllLists(listStack, pretty);
       listStack = [];
       counters = [];
+      alphaCounters = [];
 
       const quoteLines = collectBlockquoteLines(lines, i);
       html += renderBlockquote(
@@ -308,6 +343,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       html += closeAllLists(listStack, pretty);
       listStack = [];
       counters = [];
+      alphaCounters = [];
 
       // Collect all adjacent code-block lines
       const codeLines = collectCodeBlockLines(lines, i);
@@ -331,6 +367,7 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
       html += closeAllLists(listStack, pretty);
       listStack = [];
       counters = [];
+      alphaCounters = [];
       html += renderLineContent(line.ops, embedRenderers, blockHandlers, options);
       if (pretty) html += '\n';
       continue;
@@ -357,11 +394,26 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
         // Increment counter at current level
         counters[indent] = (counters[indent] || 0) + 1;
       }
+      if (listType === 'alpha') {
+        if (alphaCounters.length > indent + 1) {
+          alphaCounters = alphaCounters.slice(0, indent + 1);
+        }
+        while (alphaCounters.length < indent) {
+          alphaCounters.push(0);
+        }
+        if (alphaCounters.length === indent) {
+          alphaCounters.push(0);
+        }
+        alphaCounters[indent] = (alphaCounters[indent] || 0) + 1;
+      } else {
+        alphaCounters = alphaCounters.slice(0, indent);
+      }
     } else {
       html += closeAllLists(listStack, pretty);
       listStack = [];
       // Reset counters when exiting list context
       counters = [];
+      alphaCounters = [];
     }
 
     // Render line content
@@ -369,14 +421,19 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
 
     // Wrap in block tag
     if (isList) {
-      const listItemAttrs = getListItemAttributes(line.attributes);
+      let listItemAttrs = getListItemAttributes(line.attributes);
       const indentLevel = listStack.length;
 
-      // Calculate hierarchical number if enabled
+      // Calculate hierarchical number if enabled. Alpha draws A) B) C), not 1.1.
       let hierarchicalNumber: string | undefined;
       if (hierarchicalNumbers && listType === 'ordered') {
         hierarchicalNumber = counters.slice(0, indent + 1).join('.');
       }
+      if (listType === 'alpha') {
+        const letter = alphaMarker(alphaCounters[indent] || 1);
+        listItemAttrs += ` data-marker="${letter}"`;
+      }
+      listItemAttrs += quizMarkerAttrs(line.attributes);
 
       html += renderListItem(
         content,
@@ -411,7 +468,8 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
     }
   }
 
-  // Close any remaining lists
+  // Close a quiz plate (and its lists) before any leftover list.
+  closeQuiz();
   html += closeAllLists(listStack, pretty);
 
   // Wrap in container if specified
@@ -1080,7 +1138,8 @@ function handleListOpen(
       stack.length === 0
         ? joinStyleParts(documentPresentationListWrapperStyleParts(resolvedDocumentPresentation))
         : '';
-    return `<${wrapperTag}${styleAttr}>`;
+    const kindAttr = listType === 'alpha' ? ' data-list="alpha"' : '';
+    return `<${wrapperTag}${kindAttr}${styleAttr}>`;
   };
 
   // Close lists that are at higher indent levels
@@ -1210,6 +1269,7 @@ function renderBlock(
   resolvedHeadingPolicy?: ResolvedHeadingPolicy,
 ): string {
   const idAttr = id ? ` id="${escapeHtml(id)}"` : '';
+  const quizAttr = quizMarkerAttrs(attributes);
   const styleAttr = getBlockStyleAttribute(
     tag,
     attributes,
@@ -1218,7 +1278,7 @@ function renderBlock(
   );
   // Use <br> for empty paragraphs so they have height in browser
   const innerContent = content || '<br>';
-  const html = `<${tag}${idAttr}${styleAttr}>${innerContent}</${tag}>`;
+  const html = `<${tag}${idAttr}${quizAttr}${styleAttr}>${innerContent}</${tag}>`;
   return pretty ? html + '\n' : html;
 }
 
