@@ -70,10 +70,10 @@ export interface ScriderDocumentMetadata {
    */
   headingAuto?: boolean;
   /**
-   * Heading decoration preset (`none` | `scrider` | `github`).
+   * Heading decoration preset (`none` | `scrider` | `github` | `llm` | `lage`).
    * Editor: `data-scrider-heading-decoration`. Export: PDF/HTML vertical rhythm + rules.
    */
-  headingDecoration?: 'none' | 'scrider' | 'github';
+  headingDecoration?: 'none' | 'scrider' | 'github' | 'llm' | 'lage';
   /**
    * When true, `h1`–`h6` also get the document first-line indent
    * ({@link textIndentCm}). Off by default: body indent does not move headings.
