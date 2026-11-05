@@ -7,14 +7,13 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@scrider/delta':
-        specifier: ^1.0.0
-        version: 1.0.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.2
+      '@scrider/delta':
+        specifier: ^1.0.0
+        version: 1.0.1
       '@types/jsdom':
         specifier: ^27.0.0
         version: 27.0.0

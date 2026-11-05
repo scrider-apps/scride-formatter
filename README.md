@@ -25,6 +25,8 @@ npm install @scrider/formatter @scrider/delta
 pnpm add @scrider/formatter @scrider/delta
 ```
 
+`@scrider/delta` is a peer dependency: formatter shares the application's single copy, so `Delta` instances and types match across packages.
+
 Optional peer dependencies (install only what you need):
 
 ```bash
