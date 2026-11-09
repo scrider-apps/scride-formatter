@@ -21,10 +21,19 @@ export {
   ACCORDION_MAX_LEVEL,
   accordionBodyFormat,
   accordionCollapsedFormat,
+  accordionFloatFormat,
   accordionFormat,
+  accordionWidthFormat,
   alignFormat,
   blockquoteFormat,
+  codeBlockFloatFormat,
   codeBlockFormat,
+  codeBlockHeightFormat,
+  codeBlockWidthFormat,
+  isBlockBoxFloat,
+  isBlockBoxLength,
+  parseBlockBoxFloat,
+  parseBlockBoxLength,
   headerFormat,
   headerIdFormat,
   indentFormat,
@@ -34,7 +43,7 @@ export {
   tableHeaderFormat,
   tableColAlignFormat,
 } from './block';
-export type { AlignType, ListType, TableColAlignType } from './block';
+export type { AlignType, BlockBoxFloat, ListType, TableColAlignType } from './block';
 
 // Embed formats
 export {

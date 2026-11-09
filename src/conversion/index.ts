@@ -108,6 +108,8 @@ export {
   ACCORDION_BODY_ATTR,
   ACCORDION_COLLAPSED_ATTR,
   ACCORDION_EXCLUSIVE_BLOCK_ATTRS,
+  ACCORDION_FLOAT_ATTR,
+  ACCORDION_WIDTH_ATTR,
   AccordionLineResolver,
   buildAccordionTree,
   hasAccordionAttributes,

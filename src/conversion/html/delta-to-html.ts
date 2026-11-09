@@ -48,6 +48,8 @@ import {
 } from './table-presentation';
 import { collectAdjacentTableLines } from '../markdown/table-region';
 import {
+  ACCORDION_FLOAT_ATTR,
+  ACCORDION_WIDTH_ATTR,
   AccordionLineResolver,
   buildAccordionTree,
   hasAccordionAttributes,
@@ -55,6 +57,11 @@ import {
   type AccordionLineInfo,
   type AccordionNode,
 } from '../accordion';
+import {
+  parseBlockBoxFloat,
+  parseBlockBoxLength,
+  type BlockBoxFloat,
+} from '../../schema/formats/block/block-box';
 import { alphaMarker, quizMarkerAttrs, readQuizId, readQuizView } from '../quiz';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
@@ -897,9 +904,34 @@ function collectAccordionLines(lines: LineContent[], startIndex: number): LineCo
 
 type EmbedRendererMap = Record<string, (value: unknown, attrs?: Record<string, unknown>) => string>;
 
+interface AccordionBox {
+  width: number | null;
+  float: BlockBoxFloat | null;
+}
+
+function readAccordionBox(attrs: AttributeMap | undefined): AccordionBox {
+  return {
+    width: parseBlockBoxLength(attrs?.[ACCORDION_WIDTH_ATTR]),
+    float: parseBlockBoxFloat(attrs?.[ACCORDION_FLOAT_ATTR]),
+  };
+}
+
+/** The editor reads these attributes back from its live DOM. */
+function accordionBoxMarkup(box: AccordionBox | null): { markers: string; styles: string[] } {
+  let markers = '';
+  const styles: string[] = [];
+  if (box?.width != null) {
+    markers += ` data-accordion-width="${box.width}"`;
+    styles.push(`width: ${box.width}px`);
+  }
+  if (box?.float != null) markers += ` data-accordion-float="${box.float}"`;
+  return { markers, styles };
+}
+
 /**
  * Editor markup: one `<p>` per line, levels resolved, collapsed scopes marked
  * `data-accordion-hidden`. Orphan body lines render as plain paragraphs.
+ * Every line of a sized level-0 scope carries the title's width and position.
  */
 function renderAccordionFlat(
   accordionLines: LineContent[],
@@ -912,24 +944,36 @@ function renderAccordionFlat(
   const resolver = new AccordionLineResolver();
   const nl = pretty ? '\n' : '';
   let html = '';
+  let box: AccordionBox | null = null;
 
   for (const line of accordionLines) {
     const info = resolver.next(line.attributes);
     const attrs = normalizeAccordionLineAttributes(line.attributes, info);
     const content = renderLineContent(line.ops, embedRenderers, blockHandlers, options) || '<br>';
-    const styleAttr = getBlockStyleAttribute('p', attrs, resolvedDocumentPresentation);
 
     if (!info) {
+      box = null;
+      const styleAttr = getBlockStyleAttribute('p', attrs, resolvedDocumentPresentation);
       html += `<p${styleAttr}>${content}</p>${nl}`;
       continue;
     }
+    if (info.role === 'title' && info.level === 0) box = readAccordionBox(attrs);
 
+    const boxMarkup = accordionBoxMarkup(box);
+    const styleAttr = getBlockStyleAttribute(
+      'p',
+      attrs,
+      resolvedDocumentPresentation,
+      undefined,
+      boxMarkup.styles,
+    );
     let markers =
       info.role === 'title'
         ? ` class="scrider-accordion-title" data-accordion="${info.level}"`
         : ` class="scrider-accordion-body" data-accordion-body="${info.level}"`;
     if (info.collapsed) markers += ' data-accordion-collapsed="true"';
     if (info.hidden) markers += ' data-accordion-hidden="true"';
+    markers += boxMarkup.markers;
     html += `<p${markers}${styleAttr}>${content}</p>${nl}`;
   }
 
@@ -972,7 +1016,13 @@ function renderAccordionDetails(
       const innerPad = pretty ? '  '.repeat(depth + 1) : '';
       const open = node.info.collapsed ? '' : ' open';
       const summary = renderLineContent(node.line.ops, embedRenderers, blockHandlers, options);
-      html += `${pad}<details class="scrider-accordion" data-level="${node.info.level}"${open}>${nl}`;
+      const boxMarkup = accordionBoxMarkup(
+        node.info.level === 0
+          ? readAccordionBox(normalizeAccordionLineAttributes(node.line.attributes, node.info))
+          : null,
+      );
+      const boxAttrs = boxMarkup.markers + joinStyleParts(boxMarkup.styles);
+      html += `${pad}<details class="scrider-accordion" data-level="${node.info.level}"${boxAttrs}${open}>${nl}`;
       html += `${innerPad}<summary>${summary}</summary>${nl}`;
       html += renderNodes(node.children, depth + 1);
       html += `${pad}</details>${nl}`;
@@ -1092,6 +1142,33 @@ function getCodeBlockId(attributes: AttributeMap | undefined): string | undefine
 }
 
 /**
+ * Plate size and position of a code block: the first line that carries a key
+ * wins. The editor reads these attributes back from its live `<pre>`.
+ */
+function codeBlockBoxAttrs(codeLines: LineContent[]): string {
+  let width: number | null = null;
+  let height: number | null = null;
+  let float: BlockBoxFloat | null = null;
+  for (const line of codeLines) {
+    width ??= parseBlockBoxLength(line.attributes?.['code-block-width']);
+    height ??= parseBlockBoxLength(line.attributes?.['code-block-height']);
+    float ??= parseBlockBoxFloat(line.attributes?.['code-block-float']);
+  }
+  let attrs = '';
+  const styles: string[] = [];
+  if (width !== null) {
+    attrs += ` data-scrider-cb-width="${width}"`;
+    styles.push(`width: ${width}px`);
+  }
+  if (height !== null) {
+    attrs += ` data-scrider-cb-height="${height}"`;
+    styles.push(`height: ${height}px`);
+  }
+  if (float !== null) attrs += ` data-float="${float}"`;
+  return attrs + joinStyleParts(styles);
+}
+
+/**
  * Render a code block (grouped lines)
  */
 function renderCodeBlock(
@@ -1116,7 +1193,7 @@ function renderCodeBlock(
   // blocks distinct. The id is intentionally absent from markdown output —
   // there it is regenerated per fence on import.
   const idAttr = codeBlockId ? ` data-code-block-id="${escapeHtml(codeBlockId)}"` : '';
-  const html = `<pre${langAttr}${idAttr}><code${langClass}>${code}\n</code></pre>`;
+  const html = `<pre${langAttr}${idAttr}${codeBlockBoxAttrs(codeLines)}><code${langClass}>${code}\n</code></pre>`;
   return pretty ? html + '\n' : html;
 }
 
@@ -1290,10 +1367,12 @@ function getBlockStyleAttribute(
   attributes: AttributeMap | undefined,
   resolvedDocumentPresentation?: ReturnType<typeof resolveDocumentPresentation>,
   resolvedHeadingPolicy?: ResolvedHeadingPolicy,
+  extraStyles: readonly string[] = [],
 ): string {
   const styles: string[] = [
     ...blockPresentationStyleParts(tag, attributes, resolvedDocumentPresentation),
     ...headingPolicyStyleParts(tag, attributes, resolvedHeadingPolicy),
+    ...extraStyles,
   ];
 
   if (attributes) {

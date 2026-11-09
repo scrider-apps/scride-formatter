@@ -1,4 +1,5 @@
 import type { Format } from '../../Format';
+import { isBlockBoxFloat, isBlockBoxLength } from './block-box';
 
 /** Deepest accordion level: three levels, `0 → 1 → 2`. */
 export const ACCORDION_MAX_LEVEL = 2;
@@ -51,6 +52,36 @@ export const accordionCollapsedFormat: Format<boolean> = {
 
   validate(value: boolean): boolean {
     return value === true;
+  },
+};
+
+/**
+ * Width of a level-0 accordion, CSS px. Absent = full width.
+ *
+ * Delta: { insert: "\n", attributes: { accordion: 0, "accordion-width": "480" } }
+ *
+ * Lives on the level-0 title only; the whole scope takes it.
+ */
+export const accordionWidthFormat: Format<string | number> = {
+  name: 'accordion-width',
+  scope: 'block',
+
+  validate(value: string | number): boolean {
+    return isBlockBoxLength(value);
+  },
+};
+
+/**
+ * Position of a level-0 accordion: `left` / `center` / `right`. Absent = in the line.
+ *
+ * Delta: { insert: "\n", attributes: { accordion: 0, "accordion-float": "center" } }
+ */
+export const accordionFloatFormat: Format<string> = {
+  name: 'accordion-float',
+  scope: 'block',
+
+  validate(value: string): boolean {
+    return isBlockBoxFloat(value);
   },
 };
 

@@ -2,15 +2,30 @@ export {
   ACCORDION_MAX_LEVEL,
   accordionBodyFormat,
   accordionCollapsedFormat,
+  accordionFloatFormat,
   accordionFormat,
+  accordionWidthFormat,
 } from './accordion';
+
+export {
+  isBlockBoxFloat,
+  isBlockBoxLength,
+  parseBlockBoxFloat,
+  parseBlockBoxLength,
+} from './block-box';
+export type { BlockBoxFloat } from './block-box';
 
 export { alignFormat } from './align';
 export type { AlignType } from './align';
 
 export { blockquoteFormat } from './blockquote';
 
-export { codeBlockFormat } from './code-block';
+export {
+  codeBlockFloatFormat,
+  codeBlockFormat,
+  codeBlockHeightFormat,
+  codeBlockWidthFormat,
+} from './code-block';
 
 export { headerFormat } from './header';
 

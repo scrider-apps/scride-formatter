@@ -23,10 +23,15 @@ import {
 import {
   accordionBodyFormat,
   accordionCollapsedFormat,
+  accordionFloatFormat,
   accordionFormat,
+  accordionWidthFormat,
   alignFormat,
   blockquoteFormat,
+  codeBlockFloatFormat,
   codeBlockFormat,
+  codeBlockHeightFormat,
+  codeBlockWidthFormat,
   headerFormat,
   headerIdFormat,
   indentFormat,
@@ -85,6 +90,9 @@ export const defaultBlockFormats: Format[] = [
   headerIdFormat,
   blockquoteFormat,
   codeBlockFormat,
+  codeBlockWidthFormat,
+  codeBlockHeightFormat,
+  codeBlockFloatFormat,
   listFormat,
   alignFormat,
   indentFormat,
@@ -95,6 +103,8 @@ export const defaultBlockFormats: Format[] = [
   accordionFormat,
   accordionCollapsedFormat,
   accordionBodyFormat,
+  accordionWidthFormat,
+  accordionFloatFormat,
 ];
 
 /**

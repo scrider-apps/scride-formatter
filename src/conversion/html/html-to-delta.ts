@@ -21,13 +21,15 @@ import {
 import { slugify } from '../utils/slugify';
 import { enrichTableBlockFromHost, type TableBlockData } from '../../schema/blocks/table';
 import { ACCORDION_MAX_LEVEL } from '../../schema/formats/block/accordion';
-import { ACCORDION_ATTR, ACCORDION_BODY_ATTR, ACCORDION_COLLAPSED_ATTR } from '../accordion';
 import {
-  QUIZ_ID_ATTR,
-  QUIZ_ROLE_ATTR,
-  QUIZ_VIEW_ATTR,
-  type QuizView,
-} from '../quiz';
+  ACCORDION_ATTR,
+  ACCORDION_BODY_ATTR,
+  ACCORDION_COLLAPSED_ATTR,
+  ACCORDION_FLOAT_ATTR,
+  ACCORDION_WIDTH_ATTR,
+} from '../accordion';
+import { parseBlockBoxFloat, parseBlockBoxLength } from '../../schema/formats/block/block-box';
+import { QUIZ_ID_ATTR, QUIZ_ROLE_ATTR, QUIZ_VIEW_ATTR, type QuizView } from '../quiz';
 
 function parseAccordionLevel(value: string | null): number | null {
   if (value === null || !/^\d+$/.test(value.trim())) return null;
@@ -606,6 +608,14 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     currentBlockAttributes['code-block'] = codeBlockValue;
     const existingId = element.getAttribute('data-code-block-id');
     currentBlockAttributes['code-block-id'] = existingId || `cb-${++codeBlockIdSeq}`;
+
+    // Plate size and position from our own deltaToHtml or the editor's live <pre>.
+    const width = parseBlockBoxLength(element.getAttribute('data-scrider-cb-width'));
+    const height = parseBlockBoxLength(element.getAttribute('data-scrider-cb-height'));
+    const float = parseBlockBoxFloat(element.getAttribute('data-float'));
+    if (width !== null) currentBlockAttributes['code-block-width'] = String(width);
+    if (height !== null) currentBlockAttributes['code-block-height'] = String(height);
+    if (float !== null) currentBlockAttributes['code-block-float'] = float;
 
     // Get text content from the code element or pre directly
     const sourceElement = codeElement || element;
@@ -1254,8 +1264,9 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
   }
 
   function getIndentFromMarginLeft(element: DOMElement): number | null {
-    const fromAttr = (element.getAttribute?.('style') ?? '')
-      .match(/(?:^|;)\s*margin-left:\s*([^;]+)/i)?.[1];
+    const fromAttr = (element.getAttribute?.('style') ?? '').match(
+      /(?:^|;)\s*margin-left:\s*([^;]+)/i,
+    )?.[1];
     const fromStyle = element.style?.getPropertyValue?.('margin-left');
     return parseIndentEm(fromAttr) ?? parseIndentEm(fromStyle);
   }
@@ -1290,7 +1301,18 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     if (view) currentBlockAttributes[QUIZ_VIEW_ATTR] = view;
   }
 
-  /** Editor markup: `<p data-accordion="L">` / `<p data-accordion-body="L">`. */
+  /** Width and position of a level-0 accordion, from `<p>` or `<details>`. */
+  function applyAccordionBox(element: DOMElement): void {
+    const width = parseBlockBoxLength(element.getAttribute('data-accordion-width'));
+    const float = parseBlockBoxFloat(element.getAttribute('data-accordion-float'));
+    if (width !== null) currentBlockAttributes[ACCORDION_WIDTH_ATTR] = String(width);
+    if (float !== null) currentBlockAttributes[ACCORDION_FLOAT_ATTR] = float;
+  }
+
+  /**
+   * Editor markup: `<p data-accordion="L">` / `<p data-accordion-body="L">`.
+   * Width and position are read from the level-0 title; the scope lines repeat them.
+   */
   function applyAccordionLineMarkers(element: DOMElement): void {
     const title = parseAccordionLevel(element.getAttribute('data-accordion'));
     if (title !== null) {
@@ -1298,6 +1320,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       if (element.getAttribute('data-accordion-collapsed') === 'true') {
         currentBlockAttributes[ACCORDION_COLLAPSED_ATTR] = true;
       }
+      if (title === 0) applyAccordionBox(element);
       return;
     }
     const body = parseAccordionLevel(element.getAttribute('data-accordion-body'));
@@ -1329,6 +1352,7 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     if (nested) {
       currentBlockAttributes[ACCORDION_ATTR] = level;
       if (!element.hasAttribute('open')) currentBlockAttributes[ACCORDION_COLLAPSED_ATTR] = true;
+      if (level === 0) applyAccordionBox(element);
     }
     const newlinesBefore = newlineCount;
     if (summary) processChildren(summary);

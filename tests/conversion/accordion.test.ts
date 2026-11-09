@@ -142,6 +142,84 @@ describe('sanitizeDelta keeps accordion formats', () => {
     const delta = new Delta().insert('T').insert('\n', { accordion: 5 });
     expect(sanitizeDelta(delta, createDefaultRegistry()).ops).toEqual([{ insert: 'T\n' }]);
   });
+
+  it('keeps width and position, drops invalid ones', () => {
+    const sized = new Delta()
+      .insert('T')
+      .insert('\n', { accordion: 0, 'accordion-width': '480', 'accordion-float': 'center' });
+    expect(sanitizeDelta(sized, createDefaultRegistry()).ops).toEqual(sized.ops);
+
+    const invalid = new Delta()
+      .insert('T')
+      .insert('\n', { accordion: 0, 'accordion-width': 'wide', 'accordion-float': 'none' });
+    expect(sanitizeDelta(invalid, createDefaultRegistry()).ops).toEqual([
+      { insert: 'T' },
+      { insert: '\n', attributes: { accordion: 0 } },
+    ]);
+  });
+});
+
+describe('accordion width and position', () => {
+  function sizedDelta(): Delta {
+    return new Delta()
+      .insert('T')
+      .insert('\n', { accordion: 0, 'accordion-width': '480', 'accordion-float': 'center' })
+      .insert('b')
+      .insert('\n', { 'accordion-body': 0 })
+      .insert('after\n');
+  }
+
+  it('normalization keeps them on a level-0 title only', () => {
+    const delta = new Delta()
+      .insert('T')
+      .insert('\n', { accordion: 0, 'accordion-width': 480 })
+      .insert('n')
+      .insert('\n', { accordion: 1, 'accordion-width': '300', 'accordion-float': 'left' })
+      .insert('b')
+      .insert('\n', { 'accordion-body': 1, 'accordion-float': 'right' });
+
+    expect(normalizeAccordionDelta(delta).ops).toEqual([
+      { insert: 'T' },
+      { insert: '\n', attributes: { accordion: 0, 'accordion-width': '480' } },
+      { insert: 'n' },
+      { insert: '\n', attributes: { accordion: 1 } },
+      { insert: 'b' },
+      { insert: '\n', attributes: { 'accordion-body': 1 } },
+    ]);
+  });
+
+  it('editor markup puts them on every line of the scope', () => {
+    expect(deltaToDom(sizedDelta())).toBe(
+      '<p class="scrider-accordion-title" data-accordion="0" data-accordion-width="480" data-accordion-float="center" style="width: 480px">T</p>' +
+        '<p class="scrider-accordion-body" data-accordion-body="0" data-accordion-width="480" data-accordion-float="center" style="width: 480px">b</p>' +
+        '<p>after</p>',
+    );
+  });
+
+  it('export markup puts them on the level-0 details', () => {
+    expect(deltaToHtml(sizedDelta())).toBe(
+      '<details class="scrider-accordion" data-level="0" data-accordion-width="480" data-accordion-float="center" style="width: 480px" open>' +
+        '<summary>T</summary><p>b</p></details><p>after</p>',
+    );
+  });
+
+  it('round-trips through both markups', () => {
+    const delta = sizedDelta();
+    expect(htmlToDelta(deltaToDom(delta)).ops).toEqual(delta.ops);
+    expect(htmlToDelta(deltaToHtml(delta)).ops).toEqual(delta.ops);
+  });
+
+  it('reads them from the title only', () => {
+    const html =
+      '<p data-accordion="0">T</p>' +
+      '<p data-accordion-body="0" data-accordion-width="300" data-accordion-float="left">b</p>';
+    expect(htmlToDelta(html).ops).toEqual([
+      { insert: 'T' },
+      { insert: '\n', attributes: { accordion: 0 } },
+      { insert: 'b' },
+      { insert: '\n', attributes: { 'accordion-body': 0 } },
+    ]);
+  });
 });
 
 describe('deltaToHtml (export) — nested <details>', () => {

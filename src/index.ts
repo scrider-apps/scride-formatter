@@ -18,7 +18,14 @@ export type {
   CodeWidgetEmbedUrlFn,
 } from './schema';
 export type { BlockHandler, BlockContext, BlockRenderOptions } from './schema';
-export type { TableBlockData, CellData, CellAlign, CellHorizontalAlign, CellVerticalAlign, TableBlockFloat } from './schema';
+export type {
+  TableBlockData,
+  CellData,
+  CellAlign,
+  CellHorizontalAlign,
+  CellVerticalAlign,
+  TableBlockFloat,
+} from './schema';
 export type { FootnotesBlockData } from './schema';
 export type { AlertBlockData, AlertType } from './schema';
 export type { ColumnsBlockData } from './schema';
@@ -64,10 +71,19 @@ export {
   ACCORDION_MAX_LEVEL,
   accordionBodyFormat,
   accordionCollapsedFormat,
+  accordionFloatFormat,
   accordionFormat,
+  accordionWidthFormat,
   alignFormat,
   blockquoteFormat,
+  codeBlockFloatFormat,
   codeBlockFormat,
+  codeBlockHeightFormat,
+  codeBlockWidthFormat,
+  isBlockBoxFloat,
+  isBlockBoxLength,
+  parseBlockBoxFloat,
+  parseBlockBoxLength,
   headerFormat,
   headerIdFormat,
   indentFormat,
@@ -86,7 +102,7 @@ export {
   softBreakFormat,
   videoFormat,
 } from './schema';
-export type { AlignType, ListType, TableColAlignType } from './schema';
+export type { AlignType, BlockBoxFloat, ListType, TableColAlignType } from './schema';
 
 // Color utilities
 export { getNamedColors, isValidColor, isValidHexColor, toHexColor } from './schema';
@@ -180,6 +196,8 @@ export {
   ACCORDION_BODY_ATTR,
   ACCORDION_COLLAPSED_ATTR,
   ACCORDION_EXCLUSIVE_BLOCK_ATTRS,
+  ACCORDION_FLOAT_ATTR,
+  ACCORDION_WIDTH_ATTR,
   AccordionLineResolver,
   buildAccordionTree,
   hasAccordionAttributes,

@@ -3,7 +3,9 @@
  *
  * Delta is flat (per-line attributes on `\n`, like blockquote):
  * - `accordion: L` (+ `accordion-collapsed: true`) — title line of level L;
- * - `accordion-body: L` — body line owned by the nearest title of level L.
+ * - `accordion-body: L` — body line owned by the nearest title of level L;
+ * - `accordion-width` / `accordion-float` on a level-0 title — size and position
+ *   of the whole scope.
  *
  * Scope of a level-L title: following body lines of level ≥ L and titles of
  * level > L. It ends at a body line of level < L, a title of level ≤ L, or a
@@ -18,10 +20,13 @@ import { Delta, isInsert } from '@scrider/delta';
 import type { AttributeMap, Op } from '@scrider/delta';
 
 import { ACCORDION_MAX_LEVEL } from '../schema/formats/block/accordion';
+import { parseBlockBoxFloat, parseBlockBoxLength } from '../schema/formats/block/block-box';
 
 export const ACCORDION_ATTR = 'accordion';
 export const ACCORDION_COLLAPSED_ATTR = 'accordion-collapsed';
 export const ACCORDION_BODY_ATTR = 'accordion-body';
+export const ACCORDION_WIDTH_ATTR = 'accordion-width';
+export const ACCORDION_FLOAT_ATTR = 'accordion-float';
 
 /** Block formats that do not combine with accordion lines (text-only model). */
 export const ACCORDION_EXCLUSIVE_BLOCK_ATTRS: readonly string[] = [
@@ -101,7 +106,8 @@ export class AccordionLineResolver {
 
 /**
  * Line attributes rewritten to the effective accordion role: levels fixed,
- * orphan body dropped, block formats that do not combine with accordion removed.
+ * orphan body dropped, block formats that do not combine with accordion removed,
+ * width and position kept on a level-0 title only.
  */
 export function normalizeAccordionLineAttributes(
   attrs: AttributeMap | undefined,
@@ -112,12 +118,20 @@ export function normalizeAccordionLineAttributes(
   delete out[ACCORDION_ATTR];
   delete out[ACCORDION_COLLAPSED_ATTR];
   delete out[ACCORDION_BODY_ATTR];
+  delete out[ACCORDION_WIDTH_ATTR];
+  delete out[ACCORDION_FLOAT_ATTR];
 
   if (info) {
     for (const key of ACCORDION_EXCLUSIVE_BLOCK_ATTRS) delete out[key];
     if (info.role === 'title') {
       out[ACCORDION_ATTR] = info.level;
       if (info.collapsed) out[ACCORDION_COLLAPSED_ATTR] = true;
+      if (info.level === 0) {
+        const width = parseBlockBoxLength(attrs[ACCORDION_WIDTH_ATTR]);
+        const float = parseBlockBoxFloat(attrs[ACCORDION_FLOAT_ATTR]);
+        if (width !== null) out[ACCORDION_WIDTH_ATTR] = String(width);
+        if (float !== null) out[ACCORDION_FLOAT_ATTR] = float;
+      }
     } else {
       out[ACCORDION_BODY_ATTR] = info.level;
     }
