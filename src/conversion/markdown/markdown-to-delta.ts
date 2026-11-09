@@ -764,6 +764,12 @@ function astToDelta(
       return;
     }
 
+    // ![Audio](url) → audio embed (case-insensitive)
+    if (alt.toLowerCase() === 'audio') {
+      context.pushEmbed({ audio: url });
+      return;
+    }
+
     // ![Widget](url) → code widget embed (case-insensitive). Phase 8 Part 3.5.
     if (alt.toLowerCase() === 'widget') {
       context.pushEmbed({ codeWidget: url });

@@ -1,3 +1,4 @@
+export { audioFormat, audioSrc } from './audio';
 export { blockFormat } from './block';
 export { codeWidgetFormat } from './codeWidget';
 export { diagramFormat } from './diagram';

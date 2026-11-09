@@ -147,6 +147,11 @@ export const EMBED_RENDERERS: Record<string, EmbedRenderer> = {
     return `<video src="${escapeHtml(src)}" controls${float}${style}></video>`;
   },
 
+  audio: (value) => {
+    const src = typeof value === 'string' ? value : '';
+    return `<audio src="${escapeHtml(src)}" controls></audio>`;
+  },
+
   codeWidget: (value, attrs, context) => {
     const src = typeof value === 'string' ? value : '';
     const floatVal = attrs?.float;

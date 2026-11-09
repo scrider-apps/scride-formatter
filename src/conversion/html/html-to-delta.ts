@@ -20,6 +20,7 @@ import {
 } from './config';
 import { slugify } from '../utils/slugify';
 import { enrichTableBlockFromHost, type TableBlockData } from '../../schema/blocks/table';
+import { audioSrc } from '../../schema/formats/embed/audio';
 import { ACCORDION_MAX_LEVEL } from '../../schema/formats/block/accordion';
 import {
   ACCORDION_ATTR,
@@ -403,6 +404,12 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
 
     if (tagName === 'video' || tagName === 'iframe') {
       processVideoElement(node);
+      return;
+    }
+
+    if (tagName === 'audio') {
+      const src = audioSrc(node);
+      if (src) context.pushEmbed({ audio: src });
       return;
     }
 

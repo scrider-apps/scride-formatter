@@ -44,6 +44,7 @@ import {
 
 // Embed formats
 import {
+  audioFormat,
   blockFormat,
   codeWidgetFormat,
   dividerFormat,
@@ -113,6 +114,7 @@ export const defaultBlockFormats: Format[] = [
 export const defaultEmbedFormats: Format[] = [
   imageFormat,
   videoFormat,
+  audioFormat,
   codeWidgetFormat,
   formulaFormat,
   dividerFormat,

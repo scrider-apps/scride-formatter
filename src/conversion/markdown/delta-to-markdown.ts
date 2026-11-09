@@ -1026,6 +1026,11 @@ function renderEmbed(
     return `![Video](${src})`;
   }
 
+  if (embedType === 'audio') {
+    const src = typeof embedValue === 'string' ? embedValue : '';
+    return `![Audio](${src})`;
+  }
+
   // Code Widget embed (Phase 8 Part 3.5) — mirrors video's float/width/height
   // handling. When attributes are present, emit HTML with the data-code-widget
   // marker so HTML → Delta routes it back to codeWidget (not video).

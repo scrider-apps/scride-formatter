@@ -93,6 +93,8 @@ export {
   tableHeaderFormat,
   tableColAlignFormat,
   // Embed
+  audioFormat,
+  audioSrc,
   blockFormat,
   codeWidgetFormat,
   dividerFormat,

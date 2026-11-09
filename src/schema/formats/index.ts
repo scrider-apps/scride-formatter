@@ -47,6 +47,8 @@ export type { AlignType, BlockBoxFloat, ListType, TableColAlignType } from './bl
 
 // Embed formats
 export {
+  audioFormat,
+  audioSrc,
   blockFormat,
   codeWidgetFormat,
   diagramFormat,
