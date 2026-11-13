@@ -26,6 +26,9 @@ export {
 export {
   resolveDocumentPresentation,
   documentMetadataToPresentation,
+  documentFontStyleParts,
+  normalizeDocumentFontFamily,
+  normalizeDocumentFontSize,
   documentPresentationStyleParts,
   blockPresentationStyleParts,
   type ResolvedDocumentPresentation,

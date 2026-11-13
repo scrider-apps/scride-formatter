@@ -127,6 +127,8 @@ export type {
   HtmlToDeltaOptions,
   SanitizeOptions,
   DeltaToMarkdownOptions,
+  InlineStyle,
+  InlineStyleWrapper,
   MarkdownToDeltaOptions,
 } from './conversion';
 export {
@@ -145,6 +147,9 @@ export {
   headingPolicyStyleParts,
   HEADER_SIZE_PRESETS,
   documentMetadataToPresentation,
+  documentFontStyleParts,
+  normalizeDocumentFontFamily,
+  normalizeDocumentFontSize,
   documentPresentationStyleParts,
   blockPresentationStyleParts,
   SCRIDER_LINE_HEIGHT_KEY,
@@ -182,6 +187,8 @@ export {
   validateDelta,
   // Markdown conversion
   deltaToMarkdown,
+  inlineStyleOf,
+  spanInlineStyleWrapper,
   markdownToDelta,
   markdownToDeltaSync,
   isRemarkAvailable,

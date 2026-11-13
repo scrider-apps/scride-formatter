@@ -27,6 +27,7 @@ import {
 import { slugifyWithDedup } from '../utils/slugify';
 import {
   blockPresentationStyleParts,
+  documentFontStyleParts,
   documentMetadataToPresentation,
   documentPresentationListWrapperStyleParts,
   joinStyleParts,
@@ -769,6 +770,12 @@ function renderTableRow(
   const nl = pretty ? '\n' : '';
 
   let html = `${indent}<tr>${nl}`;
+  const fontParts = documentFontStyleParts(
+    cellTag,
+    resolveDocumentPresentation(
+      options?.documentPresentation ?? documentMetadataToPresentation(options?.documentMetadata),
+    ),
+  );
 
   for (let col = 0; col <= maxCol; col++) {
     const cell = cells.get(col);
@@ -785,6 +792,11 @@ function renderTableRow(
     } else {
       styleAttr =
         cell?.colAlign && cell.colAlign !== 'left' ? ` style="text-align: ${cell.colAlign}"` : '';
+    }
+    if (fontParts.length > 0) {
+      styleAttr = styleAttr
+        ? `${styleAttr.slice(0, -1)}; ${fontParts.join('; ')}"`
+        : joinStyleParts(fontParts);
     }
     html += `${cellIndent}<${cellTag}${styleAttr}>${content}</${cellTag}>${nl}`;
   }

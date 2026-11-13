@@ -32,6 +32,10 @@ export interface DocumentPresentation {
   listLeftIndent?: 'text' | 'marker';
   /** Vertical margin around a top-level list. Omitted = editor default 0.5em. */
   listIntervalIndent?: '1em' | '1.5em';
+  /** Document font family (bare name). Text blocks and headings. */
+  fontFamily?: string;
+  /** Document body size in pt, e.g. `14pt`. Text blocks, not headings. */
+  fontSize?: string;
 }
 
 export interface ResolvedDocumentPresentation {
@@ -42,6 +46,25 @@ export interface ResolvedDocumentPresentation {
   listBlockIndentCm: number | undefined;
   listLeftIndent: 'text' | 'marker' | undefined;
   listIntervalIndent: '1em' | '1.5em' | undefined;
+  fontFamily: string | undefined;
+  fontSize: string | undefined;
+}
+
+const PT_SIZE_RE = /^\d+(\.\d+)?pt$/;
+
+/** `14pt` → `14pt`; any other unit or junk → undefined. */
+export function normalizeDocumentFontSize(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return PT_SIZE_RE.test(trimmed) && Number.parseFloat(trimmed) > 0 ? trimmed : undefined;
+}
+
+/** Bare family name; empty or CSS keyword → undefined. */
+export function normalizeDocumentFontFamily(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || /^(inherit|initial|unset|revert|revert-layer)$/i.test(trimmed)) return undefined;
+  return trimmed;
 }
 
 export function resolveDocumentPresentation(
@@ -81,6 +104,8 @@ export function resolveDocumentPresentation(
     presentation.paragraphSpacingBeforeEm >= 0
       ? presentation.paragraphSpacingBeforeEm
       : undefined;
+  const fontFamily = normalizeDocumentFontFamily(presentation.fontFamily);
+  const fontSize = normalizeDocumentFontSize(presentation.fontSize);
 
   if (
     lineSpacing === undefined &&
@@ -89,7 +114,9 @@ export function resolveDocumentPresentation(
     textIndentCm === undefined &&
     listBlockIndentCm === undefined &&
     listLeftIndent === undefined &&
-    listIntervalIndent === undefined
+    listIntervalIndent === undefined &&
+    fontFamily === undefined &&
+    fontSize === undefined
   ) {
     return undefined;
   }
@@ -102,6 +129,8 @@ export function resolveDocumentPresentation(
     listBlockIndentCm,
     listLeftIndent,
     listIntervalIndent,
+    fontFamily,
+    fontSize,
   };
 }
 
@@ -109,7 +138,7 @@ export function resolveDocumentPresentation(
  * Project {@link ScriderDocumentMetadata} onto an HTML {@link DocumentPresentation}
  * (export / clipboard inline CSS for paragraphs/lists).
  *
- * Maps line/paragraph spacing and indent only. Heading policy is projected
+ * Maps line/paragraph spacing, indent and document font. Heading policy is projected
  * separately via {@link resolveHeadingPolicy} / {@link headingPolicyStyleParts}
  * onto `h1`–`h6`. `tablePresentation` is read from metadata in `deltaToHtml`
  * when the explicit option is omitted. Returns `undefined` when nothing maps.
@@ -141,8 +170,50 @@ export function documentMetadataToPresentation(
   if (metadata.listIntervalIndent === '1em' || metadata.listIntervalIndent === '1.5em') {
     presentation.listIntervalIndent = metadata.listIntervalIndent;
   }
+  const fontFamily = normalizeDocumentFontFamily(metadata.defaultFont);
+  if (fontFamily !== undefined) presentation.fontFamily = fontFamily;
+  const fontSize = normalizeDocumentFontSize(metadata.defaultFontSize);
+  if (fontSize !== undefined) presentation.fontSize = fontSize;
 
   return Object.keys(presentation).length > 0 ? presentation : undefined;
+}
+
+/** Block tags that receive the document font family. */
+const FONT_FAMILY_TAGS = new Set([
+  'p',
+  'li',
+  'blockquote',
+  'td',
+  'th',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+]);
+
+/** Block tags that receive the document body size (headings keep their grid). */
+const FONT_SIZE_TAGS = new Set(['p', 'li', 'blockquote', 'td', 'th']);
+
+function cssFontFamilyValue(family: string): string {
+  return /^[\w-]+$/.test(family) ? family : `'${family.replace(/'/g, "\\'")}'`;
+}
+
+/** Document font family / body size on text blocks. Inline `font` / `size` spans win. */
+export function documentFontStyleParts(
+  tag: string,
+  resolved: ResolvedDocumentPresentation | undefined,
+): string[] {
+  if (!resolved) return [];
+  const parts: string[] = [];
+  if (resolved.fontFamily !== undefined && FONT_FAMILY_TAGS.has(tag)) {
+    parts.push(`font-family:${cssFontFamilyValue(resolved.fontFamily)}`);
+  }
+  if (resolved.fontSize !== undefined && FONT_SIZE_TAGS.has(tag)) {
+    parts.push(`font-size:${resolved.fontSize}`);
+  }
+  return parts;
 }
 
 /** Block tags that receive document first-line indent. */
@@ -225,6 +296,7 @@ export function blockPresentationStyleParts(
     ...blockLineHeightStyleParts(tag, blockAttributes, resolved),
     ...blockParagraphMarginStyleParts(tag, blockAttributes, resolved),
     ...blockTextIndentStyleParts(tag, blockAttributes, resolved),
+    ...documentFontStyleParts(tag, resolved),
   ];
 }
 

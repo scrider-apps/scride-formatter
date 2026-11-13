@@ -4,8 +4,12 @@
  * Provides conversion between Delta and Markdown formats.
  */
 
-export { deltaToMarkdown } from './delta-to-markdown';
-export type { DeltaToMarkdownOptions } from './delta-to-markdown';
+export { deltaToMarkdown, inlineStyleOf, spanInlineStyleWrapper } from './delta-to-markdown';
+export type {
+  DeltaToMarkdownOptions,
+  InlineStyle,
+  InlineStyleWrapper,
+} from './delta-to-markdown';
 
 export {
   markdownToDelta,

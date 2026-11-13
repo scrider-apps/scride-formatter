@@ -82,7 +82,10 @@ export interface ScriderDocumentMetadata {
   headingTextIndent?: boolean;
   /** Default document font family (bare family name, e.g. `Georgia`). */
   defaultFont?: string;
-  /** Default document font size as a CSS length, e.g. `12pt`. */
+  /**
+   * Default document body size in `pt`, e.g. `14pt`. Other units are ignored.
+   * Headings keep their size grid.
+   */
   defaultFontSize?: string;
   /**
    * Simple / view table chrome (borders, header shade, zebra). Same shape as

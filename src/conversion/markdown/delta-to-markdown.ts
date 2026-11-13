@@ -155,6 +155,62 @@ export interface DeltaToMarkdownOptions {
    * @default false
    */
   trimTrailingNewlines?: boolean;
+
+  /**
+   * Wraps a run of inline content that shares the same style attributes
+   * (`color`, `background`, `font`, `size`). Adjacent ops with an equal style
+   * form one run; their marks stay inside the wrapper.
+   *
+   * @default `<span style="…">…</span>`
+   */
+  inlineStyleWrapper?: InlineStyleWrapper;
+}
+
+/** Style attributes written as one wrapper around a run of inline content. */
+export interface InlineStyle {
+  color?: string;
+  background?: string;
+  font?: string;
+  size?: string;
+}
+
+export type InlineStyleWrapper = (content: string, style: InlineStyle) => string;
+
+const INLINE_STYLE_KEYS = ['color', 'background', 'font', 'size'] as const;
+
+/** Style attributes of an op, or `null` when it has none. */
+export function inlineStyleOf(attributes: AttributeMap | undefined): InlineStyle | null {
+  if (!attributes) return null;
+  const style: InlineStyle = {};
+  for (const key of INLINE_STYLE_KEYS) {
+    const value = attributes[key];
+    if (typeof value === 'string') style[key] = value;
+  }
+  return Object.keys(style).length > 0 ? style : null;
+}
+
+/** Default wrapper: `<span style="color: …; font-family: …">`. */
+export const spanInlineStyleWrapper: InlineStyleWrapper = (content, style) => {
+  const props: string[] = [];
+  if (style.color) props.push(`color: ${style.color}`);
+  if (style.background) props.push(`background-color: ${style.background}`);
+  if (style.font) props.push(`font-family: ${style.font}`);
+  if (style.size) props.push(`font-size: ${style.size}`);
+  return `<span style="${props.join('; ')}">${content}</span>`;
+};
+
+function inlineStyleKey(style: InlineStyle | null): string {
+  return style ? INLINE_STYLE_KEYS.map((k) => style[k] ?? '').join('\u0000') : '';
+}
+
+/** Wrapper of the running `deltaToMarkdown` call; restored after nested calls. */
+let currentInlineStyleWrapper: InlineStyleWrapper = spanInlineStyleWrapper;
+
+function withoutInlineStyle(attributes: AttributeMap | undefined): AttributeMap | undefined {
+  if (!attributes) return attributes;
+  const rest: AttributeMap = { ...attributes };
+  for (const key of INLINE_STYLE_KEYS) delete rest[key];
+  return rest;
 }
 
 /**
@@ -183,6 +239,16 @@ interface Line {
  * ```
  */
 export function deltaToMarkdown(delta: Delta, options: DeltaToMarkdownOptions = {}): string {
+  const outerWrapper = currentInlineStyleWrapper;
+  currentInlineStyleWrapper = options.inlineStyleWrapper ?? spanInlineStyleWrapper;
+  try {
+    return deltaToMarkdownInner(delta, options);
+  } finally {
+    currentInlineStyleWrapper = outerWrapper;
+  }
+}
+
+function deltaToMarkdownInner(delta: Delta, options: DeltaToMarkdownOptions): string {
   const {
     strict = false,
     preserveEmptyLines = false,
@@ -790,21 +856,37 @@ function renderLineContent(
   codeWidgetEmbedUrl?: CodeWidgetEmbedUrlFn,
 ): string {
   let result = '';
+  // Run of ops sharing one inline style — wrapped once, marks inside.
+  let run = '';
+  let runStyle: InlineStyle | null = null;
+  let runKey = '';
+  const flushRun = (): void => {
+    if (run) result += runStyle ? currentInlineStyleWrapper(run, runStyle) : run;
+    run = '';
+  };
 
   for (const op of ops) {
-    const attrs: AttributeMap | undefined = op.attributes;
+    const fullAttrs: AttributeMap | undefined = op.attributes;
+    const style = inCodeBlock ? null : inlineStyleOf(fullAttrs);
+    const key = inlineStyleKey(style);
+    if (key !== runKey) {
+      flushRun();
+      runStyle = style;
+      runKey = key;
+    }
+    const attrs = style ? withoutInlineStyle(fullAttrs) : fullAttrs;
 
     if (isTextInsert(op)) {
       const text: string = op.insert;
       if (inCodeBlock) {
         // Don't escape or format in code blocks
-        result += text;
+        run += text;
       } else {
-        result += renderInlineText(text, attrs);
+        run += renderInlineText(text, attrs);
       }
     } else if (isEmbedInsert(op)) {
       const embed: Record<string, unknown> = op.insert;
-      result += renderEmbed(
+      run += renderEmbed(
         embed,
         attrs,
         embedRenderers,
@@ -818,6 +900,7 @@ function renderLineContent(
       );
     }
   }
+  flushRun();
 
   return result;
 }
@@ -853,16 +936,9 @@ function renderInlineText(text: string, attributes?: AttributeMap): string {
     result = renderLink(result, link);
   }
 
-  // Apply style-based formats as <span style="..."> (outermost wrapping)
-  const styleProps: string[] = [];
-  if (typeof attributes.color === 'string') styleProps.push(`color: ${attributes.color}`);
-  if (typeof attributes.background === 'string')
-    styleProps.push(`background-color: ${attributes.background}`);
-  if (typeof attributes.font === 'string') styleProps.push(`font-family: ${attributes.font}`);
-  if (typeof attributes.size === 'string') styleProps.push(`font-size: ${attributes.size}`);
-  if (styleProps.length > 0) {
-    result = `<span style="${styleProps.join('; ')}">${result}</span>`;
-  }
+  // Style attributes wrap outermost
+  const style = inlineStyleOf(attributes);
+  if (style) result = currentInlineStyleWrapper(result, style);
 
   return result;
 }

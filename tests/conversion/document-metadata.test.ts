@@ -31,19 +31,25 @@ describe('documentMetadataToPresentation', () => {
     });
   });
 
-  it('ignores heading/font/table fields (projected on other paths)', () => {
+  it('ignores heading/table fields (projected on other paths)', () => {
     const metadata: ScriderDocumentMetadata = {
       lineSpacing: 2,
       headingAlign: 'center',
       headingBold: true,
       headingSizeGridPreset: 'scrider',
       headingAuto: true,
-      defaultFont: 'Georgia',
-      defaultFontSize: '12pt',
       tablePresentation: { grid: true },
     };
 
     expect(documentMetadataToPresentation(metadata)).toEqual({ lineSpacing: 2 });
+  });
+
+  it('maps document font; size only in pt', () => {
+    expect(
+      documentMetadataToPresentation({ defaultFont: 'Georgia', defaultFontSize: '14pt' }),
+    ).toEqual({ fontFamily: 'Georgia', fontSize: '14pt' });
+    expect(documentMetadataToPresentation({ defaultFontSize: '16px' })).toBeUndefined();
+    expect(documentMetadataToPresentation({ defaultFont: ' inherit ' })).toBeUndefined();
   });
 
   it('returns undefined for undefined input', () => {
@@ -80,6 +86,51 @@ describe('deltaToHtml documentMetadata', () => {
 
     expect(html).toMatch(/margin-bottom:0\.5em/);
     expect(html).toMatch(/text-indent:1\.25cm/);
+  });
+
+  it('projects document font onto text blocks; headings get the family only', () => {
+    const metadata: ScriderDocumentMetadata = {
+      defaultFont: 'Times New Roman',
+      defaultFontSize: '14pt',
+    };
+    const delta = new Delta()
+      .insert('Title')
+      .insert('\n', { header: 1 })
+      .insert('Body')
+      .insert('\n')
+      .insert('Item')
+      .insert('\n', { list: 'bullet' })
+      .insert('code')
+      .insert('\n', { 'code-block': 'plain' });
+
+    const html = deltaToHtml(delta, { documentMetadata: metadata });
+
+    expect(html).toMatch(/<h1[^>]*font-family:'Times New Roman'/);
+    expect(html).not.toMatch(/<h1[^>]*font-size:14pt/);
+    expect(html).toMatch(/<p[^>]*font-family:'Times New Roman'; font-size:14pt[^>]*>Body/);
+    expect(html).toMatch(/<li[^>]*font-family:'Times New Roman'; font-size:14pt/);
+    expect(html).not.toMatch(/<pre[^>]*font-family/);
+  });
+
+  it('keeps inline font spans over the document font', () => {
+    const delta = new Delta().insert('Mono', { font: 'Courier New' }).insert('\n');
+    const html = deltaToHtml(delta, { documentMetadata: { defaultFont: 'Georgia' } });
+
+    expect(html).toMatch(/<p[^>]*font-family:Georgia/);
+    expect(html).toMatch(/<span[^>]*font-family: ?Courier New[^>]*>Mono/);
+  });
+
+  it('projects document font onto simple table cells', () => {
+    const delta = new Delta()
+      .insert('A')
+      .insert('\n', { 'table-row': 1, 'table-col': 1 })
+      .insert('B')
+      .insert('\n', { 'table-row': 2, 'table-col': 1 });
+    const html = deltaToHtml(delta, {
+      documentMetadata: { defaultFont: 'Georgia', defaultFontSize: '14pt' },
+    });
+
+    expect(html).toMatch(/<td[^>]*font-family:Georgia; font-size:14pt[^>]*>/);
   });
 
   it('projects listBlockIndentCm onto top-level lists', () => {
@@ -127,9 +178,9 @@ describe('deltaToHtml documentMetadata', () => {
     expect(html).not.toMatch(/line-height:1\.5/);
   });
 
-  it('is a no-op on paragraphs when metadata has only heading/font fields', () => {
+  it('is a no-op on paragraphs when metadata has only heading fields', () => {
     const withMeta = deltaToHtml(paragraphs(), {
-      documentMetadata: { headingAlign: 'center', defaultFont: 'Georgia' },
+      documentMetadata: { headingAlign: 'center' },
     });
     const plain = deltaToHtml(paragraphs());
 
