@@ -4,7 +4,6 @@ import type { BlockContext, BlockHandler } from '../BlockHandler';
 import type { Registry } from '../Registry';
 import { normalizeDelta } from '../../conversion/sanitize';
 import type { DOMElement } from '../../conversion/adapters/types';
-import { isElement } from '../../conversion/adapters/types';
 
 // ============================================================================
 // Types
@@ -165,19 +164,9 @@ export const boxBlockHandler: BlockHandler<BoxBlockData> = {
     const className = element.getAttribute('class') || '';
     if (!className.includes('inline-box')) return null;
 
-    // Parse children to get nested Delta content
-    let ops: Op[] = [];
-
-    const children = element.childNodes;
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      if (!child || !isElement(child)) continue;
-
-      if (context.parseElement) {
-        const parsed = context.parseElement(child);
-        ops = ops.concat(parsed);
-      }
-    }
+    // The whole box at once: `parseElement` reads an element's inner HTML,
+    // so a child alone would lose its own tag (`<h3>`, `<ul>`).
+    let ops: Op[] = context.parseElement ? context.parseElement(element) : [];
 
     if (ops.length === 0) {
       ops = [{ insert: '\n' }];

@@ -413,6 +413,24 @@ describe('Columns: Roundtrip', () => {
     expect(hasBold).toBe(true);
   });
 
+  it('Delta → HTML → Delta preserves headers and lists inside a column', () => {
+    const left = [
+      { insert: 'Features' },
+      { insert: '\n', attributes: { header: 3 } },
+      { insert: 'One' },
+      { insert: '\n', attributes: { list: 'bullet' } },
+      { insert: 'Two' },
+      { insert: '\n', attributes: { list: 'ordered' } },
+    ];
+    const original = columnsDelta([left, [{ insert: 'Plain text\n' }]]);
+    const html = deltaToHtml(original, { blockHandlers });
+    const restored = htmlToDelta(html, { blockHandlers });
+
+    const block = (restored.ops[0] as InsertOp).insert as { block: ColumnsBlockData };
+    expect(block.block.columns[0]!.ops).toEqual(left);
+    expect(block.block.columns[1]!.ops).toEqual([{ insert: 'Plain text\n' }]);
+  });
+
   it('Delta → HTML → Delta preserves 3 columns', () => {
     const original = columnsDelta([
       [{ insert: 'One\n' }],

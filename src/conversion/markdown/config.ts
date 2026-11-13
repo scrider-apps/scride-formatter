@@ -8,10 +8,11 @@
  * Characters that need escaping in Markdown text
  *
  * Note: `.` is only special at line start after a number (ordered lists)
- * We escape only the most impactful chars: \ ` * _ [ ] < > #
+ * We escape only the most impactful chars: \ ` * _ [ ] < > # $
+ * `$` because two of them on a line read back as `$…$` math.
  * Chars like `.` `!` `|` are context-dependent and rarely need escaping inline.
  */
-export const MARKDOWN_ESCAPE_CHARS = /[\\`*_[\]<>#]/g;
+export const MARKDOWN_ESCAPE_CHARS = /[\\`*_[\]<>#$]/g;
 
 /**
  * Escape special Markdown characters

@@ -25,6 +25,16 @@ describe('deltaToMarkdown', () => {
       const md = deltaToMarkdown(delta);
       expect(md).toBe('Use \\*asterisks\\* and \\_underscores\\_ with \\`code\\`');
     });
+
+    it('escapes dollar signs so a pair is not math', () => {
+      const delta = new Delta().insert('From $5 to $10\n');
+      expect(deltaToMarkdown(delta)).toBe('From \\$5 to \\$10');
+    });
+
+    it('keeps dollar signs inside inline code', () => {
+      const delta = new Delta().insert('$HOME', { code: true }).insert('\n');
+      expect(deltaToMarkdown(delta)).toBe('`$HOME`');
+    });
   });
 
   describe('inline formatting', () => {

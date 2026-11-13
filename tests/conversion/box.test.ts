@@ -421,6 +421,22 @@ describe('Box: Roundtrip', () => {
     expect(textContent).toContain('Title');
     expect(textContent).toContain('Paragraph');
   });
+
+  it('roundtrip keeps headers and lists inside', () => {
+    const content = [
+      { insert: 'Title', attributes: { bold: true } },
+      { insert: '\n', attributes: { header: 3 } },
+      { insert: 'One' },
+      { insert: '\n', attributes: { list: 'bullet' } },
+      { insert: 'Paragraph\n' },
+    ];
+    const html = deltaToHtml(boxDelta(content, { float: 'left' }), { blockHandlers });
+    const restored = htmlToDelta(html, { blockHandlers });
+
+    const block = (findBlockOp(restored.ops as InsertOp[])!.insert as { block: BoxBlockData })
+      .block;
+    expect(block.content.ops).toEqual(content);
+  });
 });
 
 // ============================================================================

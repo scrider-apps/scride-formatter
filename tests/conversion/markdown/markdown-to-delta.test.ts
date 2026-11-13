@@ -29,6 +29,14 @@ describe.runIf(runTests)('markdownToDelta', () => {
       // Delta compacts consecutive text with same attributes
       expect(delta.ops).toEqual([{ insert: 'First paragraph\nSecond paragraph\n' }]);
     });
+
+    it('round-trips dollar signs in text without reading math', async () => {
+      const source = new Delta().insert('From $5 to $10, ').insert('$x$', { bold: true }).insert('\n');
+      const md = deltaToMarkdown(source);
+      expect(md).toBe('From \\$5 to \\$10, **\\$x\\$**');
+      const delta = await markdownToDelta(md);
+      expect(delta.ops).toEqual(source.ops);
+    });
   });
 
   describe('inline formatting', () => {

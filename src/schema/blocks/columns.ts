@@ -171,18 +171,9 @@ export const columnsBlockHandler: BlockHandler<ColumnsBlockData> = {
       const childClass = child.getAttribute('class') || '';
       if (!/\bcolumn\b/.test(childClass)) continue;
 
-      // Parse all children of the column div
-      let ops: Op[] = [];
-      if (context.parseElement) {
-        const childChildren = child.childNodes;
-        for (let j = 0; j < childChildren.length; j++) {
-          const el = childChildren[j];
-          if (el && isElement(el)) {
-            const parsed = context.parseElement(el);
-            ops = ops.concat(parsed);
-          }
-        }
-      }
+      // The whole column at once: `parseElement` reads an element's inner HTML,
+      // so a child alone would lose its own tag (`<h3>`, `<ul>`).
+      let ops: Op[] = context.parseElement ? context.parseElement(child) : [];
 
       if (ops.length === 0) {
         ops = [{ insert: '\n' }];
