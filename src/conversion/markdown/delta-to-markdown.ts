@@ -270,7 +270,8 @@ function deltaToMarkdownInner(delta: Delta, options: DeltaToMarkdownOptions): st
   // Track list state for proper numbering
   let orderedListIndex = 0;
   let lastListType: string | null = null;
-  let lastIndent = 0;
+  // One counter per nest level: a parent item after its children continues the parent's count.
+  let listCounters: Array<{ type: string; n: number }> = [];
   let lastWasBlockquote = false;
 
   const result: string[] = [];
@@ -415,12 +416,13 @@ function deltaToMarkdownInner(delta: Delta, options: DeltaToMarkdownOptions): st
     const indent = typeof attrs.indent === 'number' ? attrs.indent : 0;
 
     if (listType) {
-      if (listType !== lastListType || indent !== lastIndent) {
-        orderedListIndex = 0;
-      }
-      if (listType === 'ordered' || listType === 'alpha') {
-        orderedListIndex++;
-      }
+      if (lastListType === null) listCounters = [];
+      if (listCounters.length > indent + 1) listCounters.length = indent + 1;
+      const level = listCounters[indent];
+      const counter = level && level.type === listType ? level : { type: listType, n: 0 };
+      if (listType === 'ordered' || listType === 'alpha') counter.n++;
+      listCounters[indent] = counter;
+      orderedListIndex = counter.n;
     } else {
       lastListType = null;
       orderedListIndex = 0;
@@ -459,7 +461,6 @@ function deltaToMarkdownInner(delta: Delta, options: DeltaToMarkdownOptions): st
     }
 
     lastListType = listType ?? null;
-    lastIndent = indent;
     lastWasBlockquote = isBlockquote;
   }
 

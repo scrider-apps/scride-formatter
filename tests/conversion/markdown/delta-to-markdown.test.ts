@@ -163,6 +163,50 @@ describe('deltaToMarkdown', () => {
       expect(md).toBe('1. First\n2. Second\n3. Third');
     });
 
+    it('continues the parent count after nested items', () => {
+      const delta = new Delta()
+        .insert('First')
+        .insert('\n', { list: 'ordered' })
+        .insert('Nested')
+        .insert('\n', { list: 'bullet', indent: 1 })
+        .insert('Second')
+        .insert('\n', { list: 'ordered' });
+      expect(deltaToMarkdown(delta)).toBe('1. First\n    - Nested\n2. Second');
+    });
+
+    it('continues quiz letters after a nested comment', () => {
+      const delta = new Delta()
+        .insert('Q')
+        .insert('\n', { list: 'ordered' })
+        .insert('goes')
+        .insert('\n', { list: 'alpha', indent: 1 })
+        .insert('Comment')
+        .insert('\n', { list: 'bullet', indent: 2 })
+        .insert('went')
+        .insert('\n', { list: 'alpha', indent: 1 })
+        .insert('Q2')
+        .insert('\n', { list: 'ordered' })
+        .insert('is')
+        .insert('\n', { list: 'alpha', indent: 1 });
+      expect(deltaToMarkdown(delta)).toBe(
+        '1. Q\n    A) goes\n        - Comment\n    B) went\n2. Q2\n    A) is',
+      );
+    });
+
+    it('restarts the count after a paragraph and on another list type', () => {
+      const delta = new Delta()
+        .insert('One')
+        .insert('\n', { list: 'ordered' })
+        .insert('Text\n')
+        .insert('Two')
+        .insert('\n', { list: 'ordered' })
+        .insert('Bullet')
+        .insert('\n', { list: 'bullet' })
+        .insert('Three')
+        .insert('\n', { list: 'ordered' });
+      expect(deltaToMarkdown(delta)).toBe('1. One\nText\n1. Two\n- Bullet\n1. Three');
+    });
+
     it('converts task list (checked)', () => {
       const delta = new Delta()
         .insert('Done task\n', { list: 'checked' })
