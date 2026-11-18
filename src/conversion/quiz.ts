@@ -2,8 +2,9 @@
  * Quiz plate — line attributes and the lettered list used only inside it.
  *
  * Delta stays flat text plus lists. The plate is a run of lines that share
- * `quiz-id`. `quiz-role` says which zone the line belongs to. `quiz-view` is
- * the Text / Interactive mode, stored on the plate and restored on reload.
+ * `quiz-id`. `quiz-role` says which zone the line belongs to: `title`,
+ * `description` (the intro under the title), `questions`, `legend`, `key`.
+ * `quiz-view` is the Text / Interactive mode, stored on the plate and restored on reload.
  * `quiz-width` and `quiz-float` size the plate (title line). `quiz-pick` is
  * the reader's letter or `skipped` on a question line. `quiz-phase` on the
  * title line is `progress` after Start and `score` when the attempt is
@@ -30,7 +31,7 @@ export const QUIZ_PHASE_ATTR = 'quiz-phase';
 export const QUIZ_LIMIT_ATTR = 'quiz-limit';
 export const QUIZ_TIME_ATTR = 'quiz-time';
 
-export const QUIZ_ROLES = ['title', 'questions', 'legend', 'key'] as const;
+export const QUIZ_ROLES = ['title', 'description', 'questions', 'legend', 'key'] as const;
 export type QuizRole = (typeof QUIZ_ROLES)[number];
 
 export const QUIZ_VIEWS = ['text', 'interactive'] as const;
@@ -46,8 +47,8 @@ export function readQuizId(attrs: AttributeMap | undefined): string | null {
 
 export function readQuizRole(attrs: AttributeMap | undefined): QuizRole | null {
   const role = attrs?.[QUIZ_ROLE_ATTR];
-  return role === 'title' || role === 'questions' || role === 'legend' || role === 'key'
-    ? role
+  return typeof role === 'string' && (QUIZ_ROLES as readonly string[]).includes(role)
+    ? (role as QuizRole)
     : null;
 }
 

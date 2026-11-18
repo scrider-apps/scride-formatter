@@ -15,10 +15,11 @@ export const quizIdFormat: Format<string> = {
   },
 };
 
-const QUIZ_ROLES = ['title', 'questions', 'legend', 'key'] as const;
+const QUIZ_ROLES = ['title', 'description', 'questions', 'legend', 'key'] as const;
 
 /**
  * Which zone of the plate a line belongs to.
+ * `description` is the intro under the title.
  *
  * Delta: { insert: "\n", attributes: { "quiz-id": "q1", "quiz-role": "questions" } }
  */

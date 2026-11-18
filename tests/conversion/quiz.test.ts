@@ -78,4 +78,18 @@ describe('quiz plate attributes', () => {
     expect(html).toContain('data-quiz-pick="skipped"');
     expect(deltaToHtml(htmlToDelta(html), { hierarchicalNumbers: true })).toBe(html);
   });
+
+  it('keeps the description and drops an unknown role', () => {
+    const kept = new Delta().insert('About\n', { ...zone, 'quiz-role': 'description' });
+    expect(sanitizeDelta(kept, createDefaultRegistry()).ops).toEqual(kept.ops);
+
+    const unknown = new Delta().insert('Nope\n', { ...zone, 'quiz-role': 'intro' });
+    expect(sanitizeDelta(unknown, createDefaultRegistry()).ops).toEqual([
+      { insert: 'Nope\n', attributes: { ...zone } },
+    ]);
+
+    const html = deltaToHtml(kept, { hierarchicalNumbers: true });
+    expect(html).toContain('data-quiz-role="description"');
+    expect(deltaToHtml(htmlToDelta(html), { hierarchicalNumbers: true })).toBe(html);
+  });
 });

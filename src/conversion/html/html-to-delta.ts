@@ -43,6 +43,7 @@ import {
   readQuizLimit,
   readQuizPhase,
   readQuizPick,
+  readQuizRole,
   readQuizTime,
   type QuizView,
 } from '../quiz';
@@ -1312,14 +1313,12 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
 
   function applyQuizMarkers(element: DOMElement): void {
     const id = element.getAttribute('data-quiz-id') || quizFrame?.id || null;
-    const role = element.getAttribute('data-quiz-role');
+    const role = readQuizRole({ [QUIZ_ROLE_ATTR]: element.getAttribute('data-quiz-role') });
     const viewAttr = element.getAttribute('data-quiz-view');
     const view =
       viewAttr === 'interactive' || viewAttr === 'text' ? viewAttr : (quizFrame?.view ?? null);
     if (id) currentBlockAttributes[QUIZ_ID_ATTR] = id;
-    if (role === 'title' || role === 'questions' || role === 'legend' || role === 'key') {
-      currentBlockAttributes[QUIZ_ROLE_ATTR] = role;
-    }
+    if (role) currentBlockAttributes[QUIZ_ROLE_ATTR] = role;
     if (view) currentBlockAttributes[QUIZ_VIEW_ATTR] = view;
     const width = parseBlockBoxLength(element.getAttribute('data-quiz-width'));
     const float = parseBlockBoxFloat(element.getAttribute('data-quiz-float'));
