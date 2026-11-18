@@ -27,6 +27,16 @@ export {
   codeBlockWidthFormat,
 } from './code-block';
 
+export {
+  quizFloatFormat,
+  quizIdFormat,
+  quizPhaseFormat,
+  quizPickFormat,
+  quizRoleFormat,
+  quizViewFormat,
+  quizWidthFormat,
+} from './quiz';
+
 export { headerFormat } from './header';
 
 export { headerIdFormat } from './header-id';

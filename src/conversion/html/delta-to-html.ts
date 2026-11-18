@@ -63,7 +63,7 @@ import {
   parseBlockBoxLength,
   type BlockBoxFloat,
 } from '../../schema/formats/block/block-box';
-import { alphaMarker, quizMarkerAttrs, readQuizId, readQuizView } from '../quiz';
+import { alphaMarker, quizMarkerAttrs, readQuizFloat, readQuizId, readQuizView, readQuizWidth } from '../quiz';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
 export type { ResolvedHeadingPolicy };
@@ -264,7 +264,12 @@ export function deltaToHtml(delta: Delta, options: DeltaToHtmlOptions = {}): str
     closeQuiz();
     if (!id) return;
     const view = readQuizView(attributes) ?? 'text';
-    html += `<div class="scrider-quiz" data-quiz-id="${escapeHtml(id)}" data-quiz-view="${view}">`;
+    const width = readQuizWidth(attributes);
+    const float = readQuizFloat(attributes);
+    let open = `<div class="scrider-quiz" data-quiz-id="${escapeHtml(id)}" data-quiz-view="${view}"`;
+    if (width != null) open += ` data-quiz-width="${width}" style="width: ${width}px"`;
+    if (float) open += ` data-quiz-float="${float}"`;
+    html += `${open}>`;
     if (pretty) html += '\n';
     openQuizId = id;
   };

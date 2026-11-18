@@ -30,7 +30,18 @@ import {
   ACCORDION_WIDTH_ATTR,
 } from '../accordion';
 import { parseBlockBoxFloat, parseBlockBoxLength } from '../../schema/formats/block/block-box';
-import { QUIZ_ID_ATTR, QUIZ_ROLE_ATTR, QUIZ_VIEW_ATTR, type QuizView } from '../quiz';
+import {
+  QUIZ_FLOAT_ATTR,
+  QUIZ_ID_ATTR,
+  QUIZ_PHASE_ATTR,
+  QUIZ_PICK_ATTR,
+  QUIZ_ROLE_ATTR,
+  QUIZ_VIEW_ATTR,
+  QUIZ_WIDTH_ATTR,
+  readQuizPhase,
+  readQuizPick,
+  type QuizView,
+} from '../quiz';
 
 function parseAccordionLevel(value: string | null): number | null {
   if (value === null || !/^\d+$/.test(value.trim())) return null;
@@ -1306,6 +1317,14 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
       currentBlockAttributes[QUIZ_ROLE_ATTR] = role;
     }
     if (view) currentBlockAttributes[QUIZ_VIEW_ATTR] = view;
+    const width = parseBlockBoxLength(element.getAttribute('data-quiz-width'));
+    const float = parseBlockBoxFloat(element.getAttribute('data-quiz-float'));
+    const pick = readQuizPick({ [QUIZ_PICK_ATTR]: element.getAttribute('data-quiz-pick') });
+    const phase = readQuizPhase({ [QUIZ_PHASE_ATTR]: element.getAttribute('data-quiz-phase') });
+    if (width != null) currentBlockAttributes[QUIZ_WIDTH_ATTR] = String(width);
+    if (float) currentBlockAttributes[QUIZ_FLOAT_ATTR] = float;
+    if (pick) currentBlockAttributes[QUIZ_PICK_ATTR] = pick;
+    if (phase) currentBlockAttributes[QUIZ_PHASE_ATTR] = phase;
   }
 
   /** Width and position of a level-0 accordion, from `<p>` or `<details>`. */

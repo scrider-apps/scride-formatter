@@ -32,6 +32,13 @@ import {
   codeBlockFormat,
   codeBlockHeightFormat,
   codeBlockWidthFormat,
+  quizFloatFormat,
+  quizIdFormat,
+  quizPhaseFormat,
+  quizPickFormat,
+  quizRoleFormat,
+  quizViewFormat,
+  quizWidthFormat,
   headerFormat,
   headerIdFormat,
   indentFormat,
@@ -106,6 +113,13 @@ export const defaultBlockFormats: Format[] = [
   accordionBodyFormat,
   accordionWidthFormat,
   accordionFloatFormat,
+  quizIdFormat,
+  quizRoleFormat,
+  quizViewFormat,
+  quizWidthFormat,
+  quizFloatFormat,
+  quizPickFormat,
+  quizPhaseFormat,
 ];
 
 /**

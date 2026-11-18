@@ -123,16 +123,24 @@ export {
 } from './accordion';
 
 export {
+  QUIZ_FLOAT_ATTR,
   QUIZ_ID_ATTR,
+  QUIZ_PHASE_ATTR,
+  QUIZ_PICK_ATTR,
   QUIZ_ROLE_ATTR,
   QUIZ_VIEW_ATTR,
+  QUIZ_WIDTH_ATTR,
   QUIZ_ROLES,
   QUIZ_VIEWS,
   alphaMarker,
   quizMarkerAttrs,
+  readQuizFloat,
   readQuizId,
+  readQuizPhase,
+  readQuizPick,
   readQuizRole,
   readQuizView,
+  readQuizWidth,
   type QuizRole,
   type QuizView,
 } from './quiz';
