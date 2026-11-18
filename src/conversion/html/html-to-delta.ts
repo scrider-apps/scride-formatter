@@ -33,13 +33,17 @@ import { parseBlockBoxFloat, parseBlockBoxLength } from '../../schema/formats/bl
 import {
   QUIZ_FLOAT_ATTR,
   QUIZ_ID_ATTR,
+  QUIZ_LIMIT_ATTR,
   QUIZ_PHASE_ATTR,
   QUIZ_PICK_ATTR,
   QUIZ_ROLE_ATTR,
+  QUIZ_TIME_ATTR,
   QUIZ_VIEW_ATTR,
   QUIZ_WIDTH_ATTR,
+  readQuizLimit,
   readQuizPhase,
   readQuizPick,
+  readQuizTime,
   type QuizView,
 } from '../quiz';
 
@@ -1321,10 +1325,14 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     const float = parseBlockBoxFloat(element.getAttribute('data-quiz-float'));
     const pick = readQuizPick({ [QUIZ_PICK_ATTR]: element.getAttribute('data-quiz-pick') });
     const phase = readQuizPhase({ [QUIZ_PHASE_ATTR]: element.getAttribute('data-quiz-phase') });
+    const limit = readQuizLimit({ [QUIZ_LIMIT_ATTR]: element.getAttribute('data-quiz-limit') });
+    const time = readQuizTime({ [QUIZ_TIME_ATTR]: element.getAttribute('data-quiz-time') });
     if (width != null) currentBlockAttributes[QUIZ_WIDTH_ATTR] = String(width);
     if (float) currentBlockAttributes[QUIZ_FLOAT_ATTR] = float;
     if (pick) currentBlockAttributes[QUIZ_PICK_ATTR] = pick;
     if (phase) currentBlockAttributes[QUIZ_PHASE_ATTR] = phase;
+    if (limit != null) currentBlockAttributes[QUIZ_LIMIT_ATTR] = String(limit);
+    if (time != null) currentBlockAttributes[QUIZ_TIME_ATTR] = String(time);
   }
 
   /** Width and position of a level-0 accordion, from `<p>` or `<details>`. */

@@ -90,16 +90,61 @@ export const quizPickFormat: Format<string> = {
 };
 
 /**
- * The plate was finished. Absent = still on the questions.
- * Lives on the title line. Only `score` is stored.
+ * Where the attempt is. Absent = Start has not been pressed.
+ * `progress` = the attempt is open, `score` = the score screen was reached.
+ * Lives on the title line.
  *
- * Delta: { insert: "\n", attributes: { "quiz-role": "title", "quiz-phase": "score" } }
+ * Delta: { insert: "\n", attributes: { "quiz-role": "title", "quiz-phase": "progress" } }
  */
 export const quizPhaseFormat: Format<string> = {
   name: 'quiz-phase',
   scope: 'block',
 
   validate(value: string): boolean {
-    return value === 'score';
+    return value === 'progress' || value === 'score';
+  },
+};
+
+/**
+ * Whole seconds. `min` is 0 for the elapsed time and 1 for a limit:
+ * a limit of 0 means "no limit" and is not stored.
+ */
+export function parseQuizSeconds(value: unknown, min: number): number | null {
+  const n =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && /^\d+$/.test(value)
+        ? Number(value)
+        : NaN;
+  return Number.isInteger(n) && n >= min ? n : null;
+}
+
+/**
+ * Time limit of the attempt, whole seconds. Absent = no limit.
+ * Lives on the title line. `00:00` is not stored.
+ *
+ * Delta: { insert: "\n", attributes: { "quiz-role": "title", "quiz-limit": "300" } }
+ */
+export const quizLimitFormat: Format<string | number> = {
+  name: 'quiz-limit',
+  scope: 'block',
+
+  validate(value: string | number): boolean {
+    return parseQuizSeconds(value, 1) != null;
+  },
+};
+
+/**
+ * Seconds from Start to the score screen. Absent before Start.
+ * Lives on the title line. Reset removes it with the phase.
+ *
+ * Delta: { insert: "\n", attributes: { "quiz-role": "title", "quiz-time": "83" } }
+ */
+export const quizTimeFormat: Format<string | number> = {
+  name: 'quiz-time',
+  scope: 'block',
+
+  validate(value: string | number): boolean {
+    return parseQuizSeconds(value, 0) != null;
   },
 };

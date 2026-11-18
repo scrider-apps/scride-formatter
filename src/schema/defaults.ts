@@ -34,9 +34,11 @@ import {
   codeBlockWidthFormat,
   quizFloatFormat,
   quizIdFormat,
+  quizLimitFormat,
   quizPhaseFormat,
   quizPickFormat,
   quizRoleFormat,
+  quizTimeFormat,
   quizViewFormat,
   quizWidthFormat,
   headerFormat,
@@ -120,6 +122,8 @@ export const defaultBlockFormats: Format[] = [
   quizFloatFormat,
   quizPickFormat,
   quizPhaseFormat,
+  quizLimitFormat,
+  quizTimeFormat,
 ];
 
 /**

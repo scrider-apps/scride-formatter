@@ -30,9 +30,11 @@ export {
 export {
   quizFloatFormat,
   quizIdFormat,
+  quizLimitFormat,
   quizPhaseFormat,
   quizPickFormat,
   quizRoleFormat,
+  quizTimeFormat,
   quizViewFormat,
   quizWidthFormat,
 } from './quiz';
