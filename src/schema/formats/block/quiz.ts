@@ -120,18 +120,22 @@ export function parseQuizSeconds(value: unknown, min: number): number | null {
   return Number.isInteger(n) && n >= min ? n : null;
 }
 
+/** Stored on the title when the quiz has no clock. Not a number of seconds. */
+export const QUIZ_LIMIT_NONE = 'none';
+
 /**
- * Time limit of the attempt, whole seconds. Absent = no limit.
- * Lives on the title line. `00:00` is not stored.
+ * Time limit of the attempt, whole seconds, or `none` when the quiz has no clock.
+ * Absent = the clock runs with no limit. Lives on the title line. `00:00` is not stored.
  *
  * Delta: { insert: "\n", attributes: { "quiz-role": "title", "quiz-limit": "300" } }
+ * Delta: { insert: "\n", attributes: { "quiz-role": "title", "quiz-limit": "none" } }
  */
 export const quizLimitFormat: Format<string | number> = {
   name: 'quiz-limit',
   scope: 'block',
 
   validate(value: string | number): boolean {
-    return parseQuizSeconds(value, 1) != null;
+    return value === QUIZ_LIMIT_NONE || parseQuizSeconds(value, 1) != null;
   },
 };
 

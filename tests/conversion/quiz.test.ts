@@ -75,6 +75,18 @@ describe('quiz plate attributes', () => {
     expect(html).toContain('data-quiz-phase="progress"');
     expect(html).toContain('data-quiz-limit="300"');
     expect(html).toContain('data-quiz-time="83"');
+
+    const timeless = new Delta().insert('Title\n', {
+      ...zone,
+      'quiz-role': 'title',
+      'quiz-limit': 'none',
+    });
+    expect(sanitizeDelta(timeless, createDefaultRegistry()).ops).toEqual(timeless.ops);
+    const timelessHtml = deltaToHtml(timeless, { hierarchicalNumbers: true });
+    expect(timelessHtml).toContain('data-quiz-limit="none"');
+    expect(deltaToHtml(htmlToDelta(timelessHtml), { hierarchicalNumbers: true })).toBe(
+      timelessHtml,
+    );
     expect(html).toContain('data-quiz-pick="skipped"');
     expect(deltaToHtml(htmlToDelta(html), { hierarchicalNumbers: true })).toBe(html);
   });

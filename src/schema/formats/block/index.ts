@@ -30,6 +30,7 @@ export {
 export {
   quizFloatFormat,
   quizIdFormat,
+  QUIZ_LIMIT_NONE,
   quizLimitFormat,
   quizPhaseFormat,
   quizPickFormat,

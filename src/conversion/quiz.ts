@@ -8,8 +8,9 @@
  * `quiz-width` and `quiz-float` size the plate (title line). `quiz-pick` is
  * the reader's letter or `skipped` on a question line. `quiz-phase` on the
  * title line is `progress` after Start and `score` when the attempt is
- * finished. `quiz-limit` is the optional time limit in whole seconds, and
- * `quiz-time` is the seconds from Start to the score screen.
+ * finished. `quiz-limit` is the optional time limit in whole seconds, or
+ * `none` when the quiz has no clock. `quiz-time` is the seconds from Start
+ * to the score screen.
  *
  * `list: "alpha"` is a quiz-owned marker (A, B, C, …). It is not hierarchical
  * `ordered` (`1.1.`) and not a document-wide outline scheme.
@@ -19,7 +20,9 @@ import type { AttributeMap } from '@scrider/delta';
 
 import { parseBlockBoxFloat, parseBlockBoxLength } from '../schema/formats/block/block-box';
 import type { BlockBoxFloat } from '../schema/formats/block/block-box';
-import { parseQuizSeconds } from '../schema/formats/block/quiz';
+import { QUIZ_LIMIT_NONE, parseQuizSeconds } from '../schema/formats/block/quiz';
+
+export { QUIZ_LIMIT_NONE };
 
 export const QUIZ_ID_ATTR = 'quiz-id';
 export const QUIZ_ROLE_ATTR = 'quiz-role';
@@ -79,9 +82,14 @@ export function readQuizPhase(attrs: AttributeMap | undefined): QuizPhase | null
   return phase === 'progress' || phase === 'score' ? phase : null;
 }
 
-/** Time limit in whole seconds, or null when there is no limit. */
-export function readQuizLimit(attrs: AttributeMap | undefined): number | null {
-  return parseQuizSeconds(attrs?.[QUIZ_LIMIT_ATTR], 1);
+/**
+ * Time limit in whole seconds, `none` when the quiz has no clock,
+ * or null when the clock runs with no limit.
+ */
+export function readQuizLimit(attrs: AttributeMap | undefined): number | 'none' | null {
+  const raw = attrs?.[QUIZ_LIMIT_ATTR];
+  if (raw === QUIZ_LIMIT_NONE) return QUIZ_LIMIT_NONE;
+  return parseQuizSeconds(raw, 1);
 }
 
 /** Elapsed seconds from Start, or null when the attempt has not started. */
