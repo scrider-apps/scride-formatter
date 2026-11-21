@@ -30,6 +30,7 @@ import {
   ACCORDION_WIDTH_ATTR,
 } from '../accordion';
 import { parseBlockBoxFloat, parseBlockBoxLength } from '../../schema/formats/block/block-box';
+import { readPlateBoxAttributes } from '../plateBox';
 import {
   QUIZ_FLOAT_ATTR,
   QUIZ_ID_ATTR,
@@ -1213,6 +1214,30 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
     }
   }
 
+  /** True when this element wraps other blocks, so it is not itself a plate line. */
+  function containsBlockChild(element: DOMElement): boolean {
+    for (let i = 0; i < element.childNodes.length; i++) {
+      const child = element.childNodes[i];
+      if (!child || !isElement(child)) continue;
+      const tag = child.tagName.toLowerCase();
+      if (
+        tag === 'p' ||
+        tag === 'div' ||
+        tag === 'ul' ||
+        tag === 'ol' ||
+        tag === 'li' ||
+        tag === 'blockquote' ||
+        tag === 'pre' ||
+        tag === 'table' ||
+        tag === 'details' ||
+        /^h[1-6]$/.test(tag)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /**
    * Process a default block element (p, div)
    */
@@ -1251,6 +1276,13 @@ export function htmlToDelta(html: string, options: HtmlToDeltaOptions = {}): Del
 
     if (!isBrOnlyParagraph) {
       processChildren(element);
+    }
+    // A plate box belongs to the line that paints it. A wrapper that only
+    // contains other blocks keeps its own trailing newline free of the box.
+    if (!containsBlockChild(element)) {
+      for (const [key, value] of Object.entries(readPlateBoxAttributes(element))) {
+        currentBlockAttributes[key] = value;
+      }
     }
     context.pushNewline();
 

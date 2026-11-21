@@ -27,6 +27,8 @@ export {
   codeBlockWidthFormat,
 } from './code-block';
 
+export { dialogFloatFormat, dialogWidthFormat, voiceFloatFormat, voiceWidthFormat } from './plate';
+
 export {
   quizFloatFormat,
   quizIdFormat,

@@ -63,7 +63,15 @@ import {
   parseBlockBoxLength,
   type BlockBoxFloat,
 } from '../../schema/formats/block/block-box';
-import { alphaMarker, quizMarkerAttrs, readQuizFloat, readQuizId, readQuizView, readQuizWidth } from '../quiz';
+import { plateBoxMarkup } from '../plateBox';
+import {
+  alphaMarker,
+  quizMarkerAttrs,
+  readQuizFloat,
+  readQuizId,
+  readQuizView,
+  readQuizWidth,
+} from '../quiz';
 
 export type { TableCellAlign, TablePresentation, DocumentPresentation };
 export type { ResolvedHeadingPolicy };
@@ -1364,15 +1372,17 @@ function renderBlock(
 ): string {
   const idAttr = id ? ` id="${escapeHtml(id)}"` : '';
   const quizAttr = quizMarkerAttrs(attributes);
+  const box = plateBoxMarkup(attributes);
   const styleAttr = getBlockStyleAttribute(
     tag,
     attributes,
     resolvedDocumentPresentation,
     resolvedHeadingPolicy,
+    box.styles,
   );
   // Use <br> for empty paragraphs so they have height in browser
   const innerContent = content || '<br>';
-  const html = `<${tag}${idAttr}${quizAttr}${styleAttr}>${innerContent}</${tag}>`;
+  const html = `<${tag}${idAttr}${quizAttr}${box.markers}${styleAttr}>${innerContent}</${tag}>`;
   return pretty ? html + '\n' : html;
 }
 
