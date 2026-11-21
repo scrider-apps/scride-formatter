@@ -48,7 +48,7 @@ describe('Public API exports (@scrider/formatter)', () => {
   it('exports defaultFormats', () => {
     expect(defaultFormats).toBeDefined();
     expect(Array.isArray(defaultFormats)).toBe(true);
-    expect(defaultFormats.length).toBe(51); // 14 inline + 28 block (incl. accordion ×5, code-block ×4, quiz ×9) + 9 embed (incl. softBreak, codeWidget, audio)
+    expect(defaultFormats.length).toBe(55); // 14 inline + 32 block (incl. accordion ×5, code-block ×4, quiz ×9, dialog ×2, voice ×2) + 9 embed (incl. softBreak, codeWidget, audio)
   });
 
   it('exports individual formats', () => {
